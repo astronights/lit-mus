@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { appearsInSource, properNounNames } from "@/lib/proper-nouns";
 import {
   composeSourceDocument,
-  extractContextSections,
+  extractLead,
   extractPlotSection,
+  extractSectionHeadings,
   splitSections,
   toShortBlurb,
 } from "@/lib/sources/wikipedia";
@@ -57,41 +58,61 @@ describe("extractPlotSection", () => {
   });
 });
 
-describe("extractContextSections", () => {
-  it("keeps the lead and the about-the-work sections", () => {
-    const context = extractContextSections(EXTRACT);
+describe("extractLead", () => {
+  it("takes the paragraphs before the first heading", () => {
+    const lead = extractLead(EXTRACT);
 
-    expect(context).toContain("1877 novel");
-    // The legacy fact the whole question style depends on.
-    expect(context).toContain("checkrein");
+    expect(lead).toContain("1877 novel");
+    expect(lead).not.toContain("Squire Gordon");
   });
 
-  it("leaves the plot out, since that is fetched separately", () => {
-    expect(extractContextSections(EXTRACT)).not.toContain("Squire Gordon");
+  it("cuts a long lead on a sentence boundary", () => {
+    const long = `${"A sentence about the book. ".repeat(80)}\n\n== Plot ==\nStuff.`;
+    const lead = extractLead(long, 200);
+
+    expect(lead.length).toBeLessThanOrEqual(200);
+    expect(lead.endsWith(".")).toBe(true);
+  });
+});
+
+describe("extractSectionHeadings", () => {
+  it("lists the headings without their contents", () => {
+    const headings = extractSectionHeadings(EXTRACT);
+
+    expect(headings).toContain("Reception");
+    // The point is to signal a Legacy/Reception exists, not to carry its prose.
+    expect(headings.join(" ")).not.toContain("checkrein");
   });
 
-  it("excludes adaptations, which generate questions about films not books", () => {
-    expect(extractContextSections(EXTRACT)).not.toContain("film versions");
+  it("drops headings that describe no content of their own", () => {
+    const headings = extractSectionHeadings(
+      "Lead.\n\n== Legacy ==\nx\n\n== References ==\ny\n\n== External links ==\nz",
+    );
+
+    expect(headings).toEqual(["Legacy"]);
   });
 });
 
 describe("composeSourceDocument", () => {
-  it("labels both halves so the model can tell a legacy fact from a plot fact", () => {
+  it("carries the lead, the heading list and the plot -- and nothing else", () => {
     const document = composeSourceDocument(
       extractPlotSection(EXTRACT).text,
-      extractContextSections(EXTRACT),
+      extractLead(EXTRACT),
+      extractSectionHeadings(EXTRACT),
     );
 
-    expect(document).toContain("== About the work ==");
+    expect(document).toContain("== Lead ==");
+    expect(document).toContain("== Article sections ==");
     expect(document).toContain("== Plot ==");
-    expect(document.indexOf("== About the work ==")).toBeLessThan(document.indexOf("== Plot =="));
-    expect(document).toContain("checkrein");
     expect(document).toContain("Squire Gordon");
+    // The Reception prose is deliberately absent: the model knows this already,
+    // and carrying it was the bulkiest thing we stored.
+    expect(document).not.toContain("fifty million copies");
   });
 
-  it("omits a half that is empty rather than leaving a bare heading", () => {
-    expect(composeSourceDocument("", "Some background.")).toBe("== About the work ==\nSome background.");
-    expect(composeSourceDocument("", "")).toBe("");
+  it("omits a part that is empty rather than leaving a bare heading", () => {
+    expect(composeSourceDocument("", "Some lead.", [])).toBe("== Lead ==\nSome lead.");
+    expect(composeSourceDocument("", "", [])).toBe("");
   });
 });
 

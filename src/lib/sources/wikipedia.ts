@@ -9,15 +9,21 @@ export type WikipediaResult = {
   /** The Plot section if we found one, otherwise the article lead. */
   plotText: string;
   /**
-   * The lead plus the sections about the book rather than inside it --
-   * background, themes, reception, legacy, influence.
+   * The article lead -- the paragraphs before the first heading.
    *
-   * This is where the genuinely quizzable facts live. "Black Beauty was
-   * instrumental in abolishing the checkrein" is a legacy fact; no amount of
-   * plot summary contains it. Without this the riddle can only ever paraphrase
-   * the premise.
+   * Short, and the densest text on the page: year, prize, nationality, and
+   * usually what the title refers to. That last one is most of a good riddle.
    */
-  contextText: string;
+  leadText: string;
+  /**
+   * Section headings only, not their contents.
+   *
+   * Enough to tell the model what kind of article this is -- whether the book
+   * has a Legacy or a Reception worth reaching for -- without carrying the
+   * prose. The model supplies the facts from its own knowledge; the headings
+   * just point it at the right shelf.
+   */
+  sectionHeadings: string[];
   /** True when we fell back to the lead because no plot-ish section existed. */
   usedFallback: boolean;
 };
@@ -46,12 +52,11 @@ const PLOT_HEADINGS = [
 ];
 
 /**
- * Sections that discuss the work from outside it. Deliberately excludes
- * "Adaptations" and "See also", which are mostly lists of other titles and
- * generate questions about films rather than about the book.
+ * Headings that describe no content of their own. Everything else is kept, so
+ * a "Legacy" or "Influence" heading still signals there is something there.
  */
-const CONTEXT_HEADING_PATTERN =
-  /^(background|composition|writing|publication|publication history|themes?|style|analysis|interpretation|criticism|reception|critical reception|legacy|influence|impact|significance|historical context|context)\b/i;
+const BORING_HEADING_PATTERN =
+  /^(see also|references|notes|citations|sources|bibliography|external links|further reading)\b/i;
 
 /**
  * Fetch the plot text for an article.
@@ -91,30 +96,36 @@ export async function fetchWikipediaPlot(articleTitle: string): Promise<Wikipedi
     articleTitle: resolvedTitle,
     articleUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(resolvedTitle.replace(/ /g, "_"))}`,
     plotText: section.text,
-    contextText: extractContextSections(page.extract),
+    leadText: extractLead(page.extract),
+    sectionHeadings: extractSectionHeadings(page.extract),
     usedFallback: section.usedFallback,
   };
 }
 
-/**
- * The lead plus every "about the work" section, concatenated with their
- * headings kept so the model can see what kind of fact it is reading.
- */
-export function extractContextSections(extract: string, maxChars = 9_000): string {
-  const { lead, sections } = splitSections(extract);
+/** The paragraphs before the first heading, capped to a couple of them. */
+export function extractLead(extract: string, maxChars = 1_200): string {
+  const lead = splitSections(extract).lead.replace(/\n{2,}/g, "\n").trim();
+  if (lead.length <= maxChars) return lead;
 
-  const parts: string[] = [];
-  if (lead) parts.push(lead);
+  // Cut on a sentence boundary rather than mid-clause.
+  const cut = lead.slice(0, maxChars);
+  const lastStop = cut.lastIndexOf(". ");
+  return lastStop > maxChars / 2 ? cut.slice(0, lastStop + 1) : `${cut.trimEnd()}…`;
+}
 
-  for (const section of sections) {
-    if (!CONTEXT_HEADING_PATTERN.test(section.heading)) continue;
-    const body = section.body.trim();
-    if (body.length < 80) continue;
-    parts.push(`## ${section.heading}\n${body}`);
-  }
-
-  const joined = parts.join("\n\n");
-  return joined.length > maxChars ? `${joined.slice(0, maxChars)}…` : joined;
+/** Top-level section headings, minus the ones that describe no content. */
+export function extractSectionHeadings(extract: string): string[] {
+  const seen = new Set<string>();
+  return splitSections(extract)
+    .sections.map((section) => section.heading)
+    .filter((heading) => !BORING_HEADING_PATTERN.test(heading))
+    .filter((heading) => {
+      const key = heading.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 15);
 }
 
 /** Resolve a title/author pair to an article title via Wikipedia search. */
@@ -222,14 +233,22 @@ export function toShortBlurb(text: string, maxSentences = 4, maxChars = 520): st
 /**
  * The document stored as `source_extract` and handed to the model.
  *
- * Plot and "about the work" text under their own headings, so the model can
- * tell a plot fact from a legacy fact -- the distinction that decides whether
- * a clue is interesting. Kept as one string because that is what the existing
- * column holds; no new storage was needed to widen what we keep.
+ * Lead, section headings, plot -- and nothing else from the article. The model
+ * brings the facts; this supplies the frame (what the book is, what the article
+ * covers) and the story. Carrying the full Reception and Legacy prose as well
+ * became redundant once the model was allowed its own knowledge, and it was by
+ * far the bulkiest thing we stored.
  */
-export function composeSourceDocument(plotText: string, contextText: string): string {
+export function composeSourceDocument(
+  plotText: string,
+  leadText: string,
+  sectionHeadings: string[],
+): string {
   const parts: string[] = [];
-  if (contextText.trim()) parts.push(`== About the work ==\n${contextText.trim()}`);
+  if (leadText.trim()) parts.push(`== Lead ==\n${leadText.trim()}`);
+  if (sectionHeadings.length > 0) {
+    parts.push(`== Article sections ==\n${sectionHeadings.join(", ")}`);
+  }
   if (plotText.trim()) parts.push(`== Plot ==\n${plotText.trim()}`);
   return parts.join("\n\n");
 }

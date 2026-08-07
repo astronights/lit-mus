@@ -133,9 +133,14 @@ app. Two consequences worth knowing:
 
 The riddle is written in quizmaster register and reaches for the work's *most distinctive*
 fact, which is usually not its plot — the abolition of the checkrein for *Black Beauty*, what
-the title counts for *Maali Almeida*. That is why hydration keeps the whole article (lead,
-background, themes, reception, legacy) and not just the Plot section: a legacy fact appears in
-no plot summary.
+the title counts for *Maali Almeida*.
+
+What we store from Wikipedia is deliberately thin: the **lead**, the **list of section
+headings**, and the **plot**. The lead says what the book is, the headings say what the article
+covers (a "Legacy" heading is a hint that this book had an effect worth asking about), and the
+model supplies the facts from its own knowledge. Carrying the full Reception and Legacy prose
+was tried and dropped — it was the bulkiest thing stored and it duplicated what the model
+already knew.
 
 Detail answers must be proper nouns that **exist outside the book** — Colombo, Biafra, the
 bearing rein — never characters or invented places. Knowing that Black Beauty's stablemate is

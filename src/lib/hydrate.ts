@@ -54,10 +54,13 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
     : null;
 
   const plotText = wikipedia?.plotText ?? "";
-  const contextText = wikipedia?.contextText ?? "";
-  // One extract call gives us both; keeping the "about the work" half is what
-  // lets a clue reach for a legacy fact instead of restating the premise.
-  const sourceDocument = composeSourceDocument(plotText, contextText);
+  // Lead + headings + plot. The model knows the reception and legacy of most
+  // books already; what it needs from us is the frame and the story.
+  const sourceDocument = composeSourceDocument(
+    plotText,
+    wikipedia?.leadText ?? "",
+    wikipedia?.sectionHeadings ?? [],
+  );
 
   // Wikidata P674 first; proper nouns from the plot when it has nothing.
   const characterNames =
@@ -70,8 +73,7 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
   // slowly. *Every* source failing is a different thing -- almost always a
   // network blip -- so that stays a cache miss and gets retried next time.
   const gotSomething =
-    Boolean(plotText) ||
-    Boolean(contextText) ||
+    Boolean(sourceDocument) ||
     Boolean(openLibrary?.coverUrl) ||
     Boolean(openLibrary?.openLibraryId) ||
     characterNames.length > 0;
@@ -100,7 +102,7 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
         bookId: book.id,
         // The card blurb stays plot-only; the stored extract is the wider
         // document, since that is what generation reads.
-        shortBlurb: toShortBlurb(plotText || contextText),
+        shortBlurb: toShortBlurb(plotText || wikipedia?.leadText || ""),
         sourceExtract: sourceDocument,
         sourceUrl: wikipedia?.articleUrl ?? null,
       })

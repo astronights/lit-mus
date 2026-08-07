@@ -58,10 +58,10 @@ export function renderPrompt(template: string, context: PromptContext): string {
         ? context.characters.map((name) => `- ${name}`).join("\n")
         : "(none supplied)",
     )
-    // Gemini Flash has a large context window, but a 30k-character article
-    // buys nothing for three questions and costs latency.
+    // The document is lead + headings + plot, so this cap only bites on the
+    // handful of articles with an unusually long plot summary.
     .replaceAll(
       "{{SOURCE}}",
-      context.sourceText.slice(0, 14_000) || "(no article text available)",
+      context.sourceText.slice(0, 8_000) || "(no article text available)",
     );
 }

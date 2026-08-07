@@ -313,14 +313,19 @@ text, and is asked for strict JSON only.
 > flat questions. The facts that make a literature question worth asking are rarely stated in a
 > plot summary, and the ones that are tend to be character names.
 >
-> Two changes followed. Hydration keeps the **whole article** (lead, background, themes,
-> reception, legacy) rather than just the Plot section, since that is where a fact like Black
-> Beauty's role in abolishing the checkrein actually lives. And the model is told to combine
-> that text with what it knows, rather than being confined to it.
+> The model is now told to write from what it knows, using the article as the frame rather than
+> the ceiling.
 >
-> This needed **no schema change**: the wider document goes in the existing `source_extract`
-> column, which was always described as "raw Wikipedia text kept for regeneration". The card
-> blurb is still derived from the Plot section alone.
+> What we keep from Wikipedia is **lead + section headings + plot**, stored in the existing
+> `source_extract` column (no schema change; the card blurb still comes from the plot alone).
+> The lead identifies the book — year, prize, often what the title refers to. The heading list
+> tells the model what the article covers, so a "Legacy" heading points it at the kind of fact
+> that makes a good clue, without carrying the paragraph.
+>
+> An intermediate version stored the full background/themes/reception/legacy prose as well. It
+> was dropped: once the model is allowed its own knowledge, that text mostly duplicated what it
+> already knew, and it was by far the bulkiest thing in the database. Prompt size fell from a
+> ~14,000-character cap to ~8,000.
 
 What the two question types aim at:
 
@@ -709,7 +714,7 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 4 | argon2id hash on `account.password` | Better Auth's schema; it's what makes adding Google migration-free. |
 | 5 | Detail answers are no longer verified against the source text; the model uses its own knowledge (prompt 2026-08-07.2) | Requiring a verbatim match ruled out the questions worth asking — the interesting facts are rarely in a plot summary. `pending_review` remains in the schema and is still filtered on every read path, but nothing sets it now. |
 | 5c | `Character` table collapsed to `books.characters text[]`; `pending_review` dropped | A table whose only non-key column was always null, storing what is functionally `string[]`. Migration copies the names across before dropping. |
-| 5b | Hydration keeps the whole article, not just the Plot section | A legacy fact (Black Beauty and the checkrein) appears in no plot summary. Stored in the existing `source_extract` column — no schema change. |
+| 5b | Hydration keeps lead + section headings + plot, not just the Plot section | The lead frames the book and the heading list points at the kind of fact worth asking about. Full reception/legacy prose was tried and dropped as redundant once the model uses its own knowledge. Stored in the existing `source_extract` column — no schema change. |
 | 6 | A riddle that leaks the answer is discarded, not flagged | Nothing to salvage, and it would spoil the Drill screen's core question type. |
 | 7 | Category routes keyed by slug, not numeric id | `/browse/booker` is readable and survives a database rebuild. |
 | 8 | Non-default font pairings use `preload: false` | `next/font` self-hosts at build; there is no per-selection fetch hook. Same intent, achievable mechanism. |
