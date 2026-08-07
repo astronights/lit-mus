@@ -134,11 +134,8 @@ export default function BookDetailPage() {
           </h2>
           <ul className="flex flex-wrap gap-1.5">
             {book.characters.map((character) => (
-              <li key={character.name}>
-                <Chip>
-                  {character.name}
-                  {character.role ? ` · ${character.role}` : ""}
-                </Chip>
+              <li key={character}>
+                <Chip>{character}</Chip>
               </li>
             ))}
           </ul>

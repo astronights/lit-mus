@@ -106,6 +106,8 @@ Book
   id, title, author, first_publish_year, cover_url
   open_library_id, wikidata_id (unique)
   wikipedia_title        (resolved at hydration; also drives the attribution link)
+  characters             text[] -- key character names, from Wikidata P674 or
+                         -- proper nouns in the plot text
   hydrated_at            (null until first visit — this is the cache-miss check)
   questions_generated_at (null until the Gemini job completes)
 
@@ -115,17 +117,12 @@ PlotBlurb
   source_extract         (raw Wikipedia text — kept for regeneration AND answer validation)
   source_url             (the article, for CC BY-SA attribution)
 
-Character
-  book_id (FK), name, role
-  UNIQUE (book_id, name)
-
 QuizQuestion
   book_id (FK)
   type                   enum: title_riddle / detail
   question_text, answer
   generated_by           (Gemini model string)
   prompt_version         (from prompts/question-generation.md)
-  pending_review         boolean — failed validation; stored but never displayed
   reported               boolean — user-flagged as bad (Phase 2 UI)
 
 Category
@@ -166,8 +163,22 @@ plot. The `detail` answers being constrained to proper nouns is what makes them 
 against the plot text and character list.
 
 > **Added since the draft:** `attempts` (the "consistently missed" list needs a denominator),
-> `pending_review` (Section 5a), `wikipedia_title` and `source_url` (attribution), and
-> `Category.slug` (readable URLs — `/browse/booker` rather than `/browse/3`).
+> `wikipedia_title` and `source_url` (attribution), and `Category.slug` (readable URLs —
+> `/browse/booker` rather than `/browse/3`).
+
+> **Removed since the draft: the `Character` table and `QuizQuestion.pending_review`.**
+>
+> `Character` was a table with a serial key, a foreign key, an index, a unique constraint and a
+> `role` column that was never once set to anything but null — Wikidata supplies no role, and
+> guessing one from the plot would be inventing information. Nothing queried characters
+> independently; both consumers (the "Key characters" chips and the riddle leak check) want a
+> plain list of strings for one book. It is now `books.characters text[]`.
+>
+> It lives on `books` rather than `plot_blurbs` because a book can have Wikidata characters and
+> no Wikipedia article at all, and `plot_blurbs` rows only exist when there is article text.
+>
+> `pending_review` went with the validation change above: nothing set it any more, and a column
+> no code writes is how a schema starts to rot.
 
 ---
 
@@ -697,6 +708,7 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 3 | Total hydration failure leaves the book a cache miss (503) | A never-invalidated cache must not permanently store an empty book because of one network blip. Partial failure still marks it hydrated. |
 | 4 | argon2id hash on `account.password` | Better Auth's schema; it's what makes adding Google migration-free. |
 | 5 | Detail answers are no longer verified against the source text; the model uses its own knowledge (prompt 2026-08-07.2) | Requiring a verbatim match ruled out the questions worth asking — the interesting facts are rarely in a plot summary. `pending_review` remains in the schema and is still filtered on every read path, but nothing sets it now. |
+| 5c | `Character` table collapsed to `books.characters text[]`; `pending_review` dropped | A table whose only non-key column was always null, storing what is functionally `string[]`. Migration copies the names across before dropping. |
 | 5b | Hydration keeps the whole article, not just the Plot section | A legacy fact (Black Beauty and the checkrein) appears in no plot summary. Stored in the existing `source_extract` column — no schema change. |
 | 6 | A riddle that leaks the answer is discarded, not flagged | Nothing to salvage, and it would spoil the Drill screen's core question type. |
 | 7 | Category routes keyed by slug, not numeric id | `/browse/booker` is readable and survives a database rebuild. |

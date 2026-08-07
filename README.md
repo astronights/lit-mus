@@ -59,6 +59,30 @@ DATABASE_URL="postgresql://postgres@localhost:5432/litmus" npm run dev
 | `npm run seed` | bulk seed; idempotent, safe to re-run |
 | `npm run backfill:questions` | regenerate questions written under an old prompt |
 
+## Tuning the prompt
+
+`prompts/question-generation.md` is the whole thing — instructions and few-shot examples. It is
+read at runtime and **not cached in development**, so an edit takes effect on the next
+generation with no restart.
+
+The examples move output far more than the instructions do. If questions come back flat, add or
+sharpen an example rather than adding adjectives.
+
+When you are happy with a change:
+
+1. **Bump `version`** in the front matter. It is stamped on each question as `prompt_version`.
+2. Regenerate the books already opened under the old prompt:
+
+   ```bash
+   npm run backfill:questions -- --prompt-version 2026-08-07.2 --rehydrate --limit 20
+   ```
+
+   `--rehydrate` re-fetches the Wikipedia article first; needed only when the *stored text*
+   changes shape, not for ordinary prompt edits. Add `--dry-run` to see what would be touched.
+
+Iterating on one book is quickest against a local Postgres: open it, read the questions, edit
+the prompt, then backfill just that book.
+
 ## How a book gets its content
 
 Seeding writes **title, author, Wikidata id and categories — nothing else**. Everything

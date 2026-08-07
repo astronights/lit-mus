@@ -24,8 +24,6 @@ export type ValidatedQuestion = {
   type: "title_riddle" | "detail";
   questionText: string;
   answer: string;
-  pendingReview: boolean;
-  reviewReason?: string;
 };
 
 export type ValidationContext = {
@@ -106,7 +104,6 @@ function validateRiddle(
     questionText: question,
     // The answer to a title riddle is the title, whatever the model echoed back.
     answer: context.title,
-    pendingReview: false,
   };
 }
 
@@ -160,7 +157,7 @@ function validateDetail(raw: RawQuestion, context: ValidationContext): Validated
   if (normalisedAnswer === normaliseForMatch(context.title)) return null;
   if (context.author && normalisedAnswer === normaliseForMatch(context.author)) return null;
 
-  return { type: "detail", questionText: question, answer, pendingReview: false };
+  return { type: "detail", questionText: question, answer };
 }
 
 function asText(value: unknown): string | null {

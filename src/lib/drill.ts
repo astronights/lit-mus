@@ -24,9 +24,9 @@ export type DrillCard = {
 /**
  * Build a drill session for a user.
  *
- * Only hydrated books with at least one displayable question are eligible --
- * a card with nothing to ask is not a card. Manually retired books are
- * excluded permanently; box 5 books are not, they just come round slowly.
+ * Only hydrated books with at least one question are eligible -- a card with
+ * nothing to ask is not a card. Manually retired books are excluded
+ * permanently; box 5 books are not, they just come round slowly.
  */
 export async function buildSession(userId: string, size = 12): Promise<DrillCard[]> {
   const rows = await db
@@ -44,10 +44,7 @@ export async function buildSession(userId: string, size = 12): Promise<DrillCard
       bookDrillStates,
       and(eq(bookDrillStates.bookId, books.id), eq(bookDrillStates.userId, userId)),
     )
-    .innerJoin(
-      quizQuestions,
-      and(eq(quizQuestions.bookId, books.id), eq(quizQuestions.pendingReview, false)),
-    )
+    .innerJoin(quizQuestions, eq(quizQuestions.bookId, books.id))
     .where(isNotNull(books.hydratedAt))
     .groupBy(
       books.id,
@@ -112,7 +109,7 @@ export async function recordCardResult(
   const questionCount = await db
     .select({ value: count() })
     .from(quizQuestions)
-    .where(and(eq(quizQuestions.bookId, input.bookId), eq(quizQuestions.pendingReview, false)))
+    .where(eq(quizQuestions.bookId, input.bookId))
     .then((rows) => rows[0]?.value ?? 0);
 
   // Only accept answers to questions that really belong to this book, so a

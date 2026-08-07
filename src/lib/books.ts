@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { bookCategories, books, categories, characters, plotBlurbs, quizQuestions } from "@/db/schema";
+import { bookCategories, books, categories, plotBlurbs, quizQuestions } from "@/db/schema";
 
 export type BookSummary = {
   id: number;
@@ -24,7 +24,7 @@ export type BookQuestion = {
 export type BookDetail = BookSummary & {
   categories: Array<{ id: number; slug: string; name: string }>;
   blurb: { shortBlurb: string; sourceUrl: string | null } | null;
-  characters: Array<{ name: string; role: string | null }>;
+  characters: string[];
   questions: BookQuestion[];
   /** Null while the background generation job has not finished. */
   questionsGeneratedAt: Date | null;
@@ -102,18 +102,12 @@ export async function listCategoryBooks(
   return rows.map(toSummary);
 }
 
-/**
- * Everything the Book Detail screen needs.
- *
- * Questions flagged `pending_review` are excluded: they failed the verbatim
- * answer check, and a wrong answer you memorise is worse than no answer at
- * all. The rows stay in the table for the maintenance script.
- */
+/** Everything the Book Detail screen needs, in one round of queries. */
 export async function getBookDetail(id: number): Promise<BookDetail | null> {
   const book = await db.query.books.findFirst({ where: eq(books.id, id) });
   if (!book) return null;
 
-  const [categoryRows, blurb, characterRows, questionRows] = await Promise.all([
+  const [categoryRows, blurb, questionRows] = await Promise.all([
     db
       .select({ id: categories.id, slug: categories.slug, name: categories.name })
       .from(categories)
@@ -121,11 +115,6 @@ export async function getBookDetail(id: number): Promise<BookDetail | null> {
       .where(eq(bookCategories.bookId, id))
       .orderBy(asc(categories.name)),
     db.query.plotBlurbs.findFirst({ where: eq(plotBlurbs.bookId, id) }),
-    db
-      .select({ name: characters.name, role: characters.role })
-      .from(characters)
-      .where(eq(characters.bookId, id))
-      .orderBy(asc(characters.id)),
     db
       .select({
         id: quizQuestions.id,
@@ -135,7 +124,7 @@ export async function getBookDetail(id: number): Promise<BookDetail | null> {
         reported: quizQuestions.reported,
       })
       .from(quizQuestions)
-      .where(and(eq(quizQuestions.bookId, id), eq(quizQuestions.pendingReview, false)))
+      .where(eq(quizQuestions.bookId, id))
       // Riddle first: it is the question the card is built around.
       .orderBy(desc(eq(quizQuestions.type, "title_riddle")), asc(quizQuestions.id)),
   ]);
@@ -144,7 +133,7 @@ export async function getBookDetail(id: number): Promise<BookDetail | null> {
     ...toSummary(book),
     categories: categoryRows,
     blurb: blurb ? { shortBlurb: blurb.shortBlurb, sourceUrl: blurb.sourceUrl } : null,
-    characters: characterRows,
+    characters: book.characters ?? [],
     questions: questionRows,
     questionsGeneratedAt: book.questionsGeneratedAt,
   };
@@ -167,13 +156,7 @@ export async function questionsForBooks(
       reported: quizQuestions.reported,
     })
     .from(quizQuestions)
-    .where(
-      and(
-        inArray(quizQuestions.bookId, bookIds),
-        eq(quizQuestions.pendingReview, false),
-        eq(quizQuestions.reported, false),
-      ),
-    )
+    .where(and(inArray(quizQuestions.bookId, bookIds), eq(quizQuestions.reported, false)))
     .orderBy(desc(eq(quizQuestions.type, "title_riddle")), asc(quizQuestions.id));
 
   for (const row of rows) {

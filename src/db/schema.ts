@@ -8,7 +8,6 @@ import {
   serial,
   text,
   timestamp,
-  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -112,6 +111,21 @@ export const books = pgTable(
     wikidataId: text("wikidata_id").unique(),
     // Wikipedia article title, resolved at hydration; also drives attribution.
     wikipediaTitle: text("wikipedia_title"),
+    /*
+     * Key character names, from Wikidata P674 or, failing that, proper nouns
+     * lifted from the plot text.
+     *
+     * An array rather than a table: nothing queries characters independently,
+     * there are no attributes worth a row (Wikidata supplies no role, and
+     * guessing one from the plot would be inventing information), and both
+     * consumers -- the "Key characters" chips and the riddle leak check -- want
+     * a plain list of strings for one book.
+     *
+     * On `books` rather than `plot_blurbs` because a book can have Wikidata
+     * characters and no Wikipedia article at all, and `plot_blurbs` rows only
+     * exist when there is article text.
+     */
+    characters: text("characters").array(),
     // Null until first visit. This is the cache-miss check.
     hydratedAt: timestamp("hydrated_at", { withTimezone: true }),
     // Null until the background Gemini job completes.
@@ -137,22 +151,6 @@ export const plotBlurbs = pgTable("plot_blurbs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const characters = pgTable(
-  "characters",
-  {
-    id: serial("id").primaryKey(),
-    bookId: integer("book_id")
-      .notNull()
-      .references(() => books.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    role: text("role"),
-  },
-  (t) => [
-    index("characters_book_id_idx").on(t.bookId),
-    unique("characters_book_name_unique").on(t.bookId, t.name),
-  ],
-);
-
 export const questionTypeEnum = pgEnum("question_type", ["title_riddle", "detail"]);
 
 export const quizQuestions = pgTable(
@@ -170,9 +168,6 @@ export const quizQuestions = pgTable(
     // From prompts/question-generation.md. Lets a maintenance script find and
     // regenerate questions made under an older prompt.
     promptVersion: text("prompt_version"),
-    // Set when the answer could not be found verbatim in the source text.
-    // Questions still display; this flags them for the maintenance script.
-    pendingReview: boolean("pending_review").notNull().default(false),
     reported: boolean("reported").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

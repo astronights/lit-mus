@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { books, characters, plotBlurbs, quizQuestions } from "@/db/schema";
+import { books, plotBlurbs, quizQuestions } from "@/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { GeminiError, generateJson, geminiModel, isGeminiConfigured } from "@/lib/questions/gemini";
 import { loadPrompt, renderPrompt } from "@/lib/questions/prompt";
@@ -62,10 +62,7 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
     return { status: "throttled", retryAfterSeconds: budget.resetSeconds };
   }
 
-  const characterRows = await db.query.characters.findMany({
-    where: eq(characters.bookId, bookId),
-  });
-  const characterNames = characterRows.map((row) => row.name);
+  const characterNames = book.characters ?? [];
 
   const { version, template } = loadPrompt();
   const prompt = renderPrompt(template, {
@@ -99,13 +96,12 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
         answer: question.answer,
         generatedBy: geminiModel(),
         promptVersion: version,
-        pendingReview: question.pendingReview,
       })),
     );
   }
 
   await markGenerated(bookId);
-  return { status: "generated", count: validated.filter((q) => !q.pendingReview).length };
+  return { status: "generated", count: validated.length };
 }
 
 /**

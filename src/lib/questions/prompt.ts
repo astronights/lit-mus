@@ -17,7 +17,10 @@ export type LoadedPrompt = {
 let cached: LoadedPrompt | null = null;
 
 export function loadPrompt(): LoadedPrompt {
-  if (cached) return cached;
+  // Cached in production only. Next does not watch this file, so caching in
+  // development would mean restarting the server after every prompt edit --
+  // exactly the loop you want to be fast while tuning.
+  if (cached && process.env.NODE_ENV === "production") return cached;
 
   const file = path.join(process.cwd(), "prompts", "question-generation.md");
   const raw = readFileSync(file, "utf8");

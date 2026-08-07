@@ -102,8 +102,6 @@ describe("validateQuestions", () => {
     // The riddle's answer is the title, not whatever the model returned.
     expect(questions[0]!.answer).toBe(CONTEXT.title);
     expect(questions[1]!.answer).toBe("Colombo");
-    // Nothing is flagged any more: detail answers are taken on trust.
-    expect(questions.every((question) => !question.pendingReview)).toBe(true);
   });
 
   it("keeps an answer that appears nowhere in the article text", () => {
@@ -120,7 +118,7 @@ describe("validateQuestions", () => {
     );
 
     expect(questions).toHaveLength(1);
-    expect(questions[0]!.pendingReview).toBe(false);
+    expect(questions[0]!.answer).toBe("Booker Prize");
   });
 
   it("drops a detail question whose answer is just the title or the author", () => {

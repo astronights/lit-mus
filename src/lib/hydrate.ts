@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { books, characters, plotBlurbs } from "@/db/schema";
+import { books, plotBlurbs } from "@/db/schema";
 import { optional } from "@/lib/http";
 import { properNounNames } from "@/lib/proper-nouns";
 import { fetchOpenLibrary } from "@/lib/sources/open-library";
@@ -87,6 +87,7 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
       openLibraryId: openLibrary?.openLibraryId ?? book.openLibraryId,
       firstPublishYear: openLibrary?.firstPublishYear ?? book.firstPublishYear,
       wikipediaTitle: wikipedia?.articleTitle ?? book.wikipediaTitle,
+      characters: characterNames.length > 0 ? characterNames.slice(0, 20) : book.characters,
       hydratedAt: now,
     })
     .where(eq(books.id, book.id))
@@ -111,21 +112,6 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
           sourceUrl: sql`excluded.source_url`,
         },
       });
-  }
-
-  if (characterNames.length > 0) {
-    await db
-      .insert(characters)
-      .values(
-        characterNames.slice(0, 20).map((name) => ({
-          bookId: book.id,
-          name,
-          // Wikidata gives no role, and guessing one from the plot text would
-          // be inventing information. Left null until there is a real source.
-          role: null,
-        })),
-      )
-      .onConflictDoNothing();
   }
 
   return updated ?? { ...book, hydratedAt: now };
