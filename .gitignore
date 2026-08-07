@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+.env
+.env*.local
+
+*.tsbuildinfo
+next-env.d.ts
+
+.DS_Store
+.vercel
+coverage/
+drizzle/meta/_journal.json.bak

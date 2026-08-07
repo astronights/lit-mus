@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* next-themes writes `class="dark"` on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Content-first palette. Warm paper in light mode, near-black in dark -- the
+ * book card is the product, so the chrome stays quiet.
+ */
+:root {
+  --background: oklch(0.985 0.005 95);
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.965 0.008 95);
+  --foreground: oklch(0.22 0.015 60);
+  --muted-foreground: oklch(0.52 0.012 60);
+  --border: oklch(0.9 0.008 80);
+  --accent: oklch(0.52 0.13 40);
+  --accent-foreground: oklch(0.99 0 0);
+  --success: oklch(0.55 0.12 150);
+  --danger: oklch(0.55 0.16 25);
+
+  /* Overwritten by the [data-fonts] blocks below. */
+  --font-display-family: var(--font-inter), system-ui, sans-serif;
+  --font-body-family: var(--font-literata), Georgia, serif;
+}
+
+.dark {
+  --background: oklch(0.17 0.008 70);
+  --surface: oklch(0.21 0.01 70);
+  --surface-muted: oklch(0.25 0.01 70);
+  --foreground: oklch(0.93 0.008 80);
+  --muted-foreground: oklch(0.68 0.01 80);
+  --border: oklch(0.32 0.012 70);
+  --accent: oklch(0.72 0.12 55);
+  --accent-foreground: oklch(0.18 0.01 70);
+  --success: oklch(0.7 0.13 150);
+  --danger: oklch(0.68 0.15 25);
+}
+
+/*
+ * Font pairings (Section 5e). Display carries titles, headings and the riddle
+ * card; body carries plot blurbs and question text. Components only ever
+ * reference the two variables, so none of them knows which pairing is active.
+ */
+[data-fonts="clean"] {
+  --font-display-family: var(--font-inter), system-ui, sans-serif;
+  --font-body-family: var(--font-literata), Georgia, serif;
+}
+
+[data-fonts="comic"] {
+  --font-display-family: var(--font-bangers), Impact, sans-serif;
+  --font-body-family: var(--font-shantell), "Comic Sans MS", cursive;
+}
+
+[data-fonts="handwritten"] {
+  --font-display-family: var(--font-chewy), cursive;
+  --font-body-family: var(--font-patrick-hand), cursive;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+
+  --font-display: var(--font-display-family);
+  --font-body: var(--font-body-family);
+}
+
+html {
+  background-color: var(--background);
+  color-scheme: light;
+}
+
+.dark html,
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body-family);
+  -webkit-font-smoothing: antialiased;
+  /* Room for the fixed tab bar plus the iOS home indicator. */
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display-family);
+}
+
+/* Bangers is all-caps and tightly spaced; it needs air the others don't. */
+[data-fonts="comic"] h1,
+[data-fonts="comic"] h2,
+[data-fonts="comic"] .font-display {
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,56 @@
+# 1001 Books You Must Read Before You Die -- sample
+#
+# Format: title<TAB>author. Blank lines and lines starting with # are ignored.
+#
+# Wikidata does not model this list, so the "1001 Books" seed source reads it
+# from disk. This file is a starter sample chosen to cover the range the app
+# cares about -- 18th-century canon through contemporary world literature.
+#
+# To seed the full list: save it as data/1001-books.tsv (same format) and run
+# `npm run seed`. The job is idempotent, so re-running only adds.
+#
+# Titles are matched against Open Library and Wikipedia at hydration time, so
+# spelling matters more than punctuation.
+
+Robinson Crusoe	Daniel Defoe
+Gulliver's Travels	Jonathan Swift
+Pride and Prejudice	Jane Austen
+Frankenstein	Mary Shelley
+Jane Eyre	Charlotte Bronte
+Wuthering Heights	Emily Bronte
+Moby-Dick	Herman Melville
+Bleak House	Charles Dickens
+Great Expectations	Charles Dickens
+Madame Bovary	Gustave Flaubert
+Crime and Punishment	Fyodor Dostoevsky
+Black Beauty	Anna Sewell
+Anna Karenina	Leo Tolstoy
+The Portrait of a Lady	Henry James
+The Picture of Dorian Gray	Oscar Wilde
+Heart of Darkness	Joseph Conrad
+The Call of the Wild	Jack London
+A Portrait of the Artist as a Young Man	James Joyce
+Mrs Dalloway	Virginia Woolf
+The Great Gatsby	F. Scott Fitzgerald
+The Trial	Franz Kafka
+Brave New World	Aldous Huxley
+Their Eyes Were Watching God	Zora Neale Hurston
+The Stranger	Albert Camus
+Nineteen Eighty-Four	George Orwell
+Invisible Man	Ralph Ellison
+Things Fall Apart	Chinua Achebe
+To Kill a Mockingbird	Harper Lee
+One Hundred Years of Solitude	Gabriel Garcia Marquez
+Wide Sargasso Sea	Jean Rhys
+Slaughterhouse-Five	Kurt Vonnegut
+Song of Solomon	Toni Morrison
+Midnight's Children	Salman Rushdie
+The Handmaid's Tale	Margaret Atwood
+Beloved	Toni Morrison
+The Remains of the Day	Kazuo Ishiguro
+The God of Small Things	Arundhati Roy
+Disgrace	J. M. Coetzee
+The Blind Assassin	Margaret Atwood
+Never Let Me Go	Kazuo Ishiguro
+Half of a Yellow Sun	Chimamanda Ngozi Adichie
+The Seven Moons of Maali Almeida	Shehan Karunatilaka

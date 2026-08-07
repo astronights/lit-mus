@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="lit-mus">
+  <rect width="64" height="64" fill="#2f2a26"/>
+  <g transform="translate(8 8) scale(0.75)">
+    <path d="M14 16h16a6 6 0 0 1 6 6v28a5 5 0 0 0-5-5H14z" fill="#f4efe8"/>
+    <path d="M50 16H34a6 6 0 0 0-6 6v28a5 5 0 0 1 5-5h17z" fill="#d8cec1"/>
+    <path d="M32 22v28" stroke="#2f2a26" stroke-width="2"/>
+  </g>
+</svg>
