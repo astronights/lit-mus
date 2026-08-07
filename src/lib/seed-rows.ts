@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { qidFromUri, runSparql } from "@/lib/sources/wikidata";
@@ -35,6 +35,17 @@ export async function fetchSource(source: SeedSource): Promise<SeedRow[]> {
   }
 
   if (!source.file) throw new Error(`Source ${source.id} has no file`);
+
+  // A fresh clone has only the sample. Falling back to it keeps `npm run seed`
+  // working out of the box instead of failing on a file the repo never had.
+  if (!existsSync(path.join(process.cwd(), source.file)) && source.sampleFile) {
+    console.warn(
+      `[seed] ${source.id}: ${source.file} not found, using ${source.sampleFile} ` +
+        `(a sample — drop in the full list and re-run to expand it)`,
+    );
+    return readTsv(source.sampleFile);
+  }
+
   return readTsv(source.file);
 }
 

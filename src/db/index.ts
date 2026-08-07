@@ -4,15 +4,13 @@ import { neon } from "@neondatabase/serverless";
 import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
 
+import { requireEnv } from "@/lib/load-env";
+
 import * as schema from "./schema";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL is not set. Copy .env.example to .env.local and point it at your Neon database.",
-  );
-}
+// `requireEnv` loads .env.local / .env first, so this works whether it is
+// reached through Next.js (which loads them anyway) or a CLI script.
+const connectionString: string = requireEnv("DATABASE_URL");
 
 /**
  * Neon's serverless HTTP driver in production: every query is a fetch, so
@@ -34,8 +32,8 @@ function isLocal(url: string): boolean {
 }
 
 function createDb(): NeonHttpDatabase<typeof schema> {
-  if (!isLocal(connectionString!)) {
-    return drizzleNeon(neon(connectionString!), { schema });
+  if (!isLocal(connectionString)) {
+    return drizzleNeon(neon(connectionString), { schema });
   }
 
   const require = createRequire(import.meta.url);
@@ -49,7 +47,7 @@ function createDb(): NeonHttpDatabase<typeof schema> {
   }
 
   const { drizzle: drizzleNode } = require("drizzle-orm/node-postgres");
-  return drizzleNode(new Pool({ connectionString: connectionString! }), {
+  return drizzleNode(new Pool({ connectionString: connectionString }), {
     schema,
   }) as NeonHttpDatabase<typeof schema>;
 }

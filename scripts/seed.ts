@@ -8,7 +8,8 @@
  * Safe to re-run: books upsert on wikidata_id and categories are only ever
  * added, so a second run of the same sources changes nothing.
  */
-import "dotenv/config";
+// Must stay first: loads .env.local before any module reads process.env.
+import "@/lib/env-init";
 
 import { runSeed } from "@/lib/seed";
 import { enabledSources } from "@/lib/seed-sources";

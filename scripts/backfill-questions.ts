@@ -14,7 +14,8 @@
  * Throttled to stay inside the Gemini free tier -- this is exactly the "slow
  * background batch, not a single job" case the design doc warns about.
  */
-import "dotenv/config";
+// Must stay first: loads .env.local before any module reads process.env.
+import "@/lib/env-init";
 
 import { and, eq, isNotNull } from "drizzle-orm";
 

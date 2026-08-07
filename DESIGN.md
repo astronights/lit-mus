@@ -692,7 +692,8 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 11 | `attempts`, `pending_review`, `wikipedia_title`, `source_url`, `slug` columns added | Each is load-bearing for a feature the draft described but didn't give storage for. |
 | 12 | Generation throttle is a global Redis token budget, not a queue service | Same guarantee, no extra infrastructure. |
 | 13 | `node-postgres` fallback when `DATABASE_URL` is localhost | The whole app, seed job included, runs locally without a Neon account. |
-| 14 | Added `npm run check:sources` | The SPARQL is the one part that can't be unit-tested; this makes verifying it a single command. |
+| 14 | CLI scripts load `.env.local` (and tolerate UTF-16) | `dotenv` only reads `.env`, so drizzle-kit and the seed job ignored the file the README documents. Windows writes UTF-16 by default, which failed with an error pointing at the wrong thing. |
+| 15 | Added `npm run check:sources` | The SPARQL is the one part that can't be unit-tested; this makes verifying it a single command. |
 
 ### What was verified, and what wasn't
 

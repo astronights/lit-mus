@@ -31,6 +31,8 @@ export type SeedSource = {
   query?: string;
   /** Path (relative to repo root) of a TSV for `kind: "file"`. */
   file?: string;
+  /** Used when `file` is absent, so the source works on a fresh clone. */
+  sampleFile?: string;
   notes?: string;
 };
 
@@ -135,6 +137,7 @@ ORDER BY DESC(?links)`.trim(),
     enabled: true,
     expected: "~1,300 with the full list; a sample ships in the repo",
     file: "data/1001-books.tsv",
+    sampleFile: "data/1001-books.sample.tsv",
     notes:
       "Wikidata does not model this list, so it is file-driven: a TSV of " +
       "'title<TAB>author' lines. data/1001-books.sample.tsv ships as a starter; " +

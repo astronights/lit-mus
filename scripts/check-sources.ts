@@ -8,7 +8,8 @@
  * by English label, so a renamed prize shows up here as a zero-row source
  * rather than as a silently missing category weeks later.
  */
-import "dotenv/config";
+// Must stay first: loads .env.local before any module reads process.env.
+import "@/lib/env-init";
 
 import { fetchSource } from "@/lib/seed-rows";
 import { SEED_SOURCES, enabledSources } from "@/lib/seed-sources";

@@ -25,6 +25,15 @@ npm run seed                   # ~1,500-2,000 titles, title/author/ids only
 npm run dev
 ```
 
+`.env.local` is read by the app *and* by the CLI scripts, with `.env` as a fallback and real
+environment variables winning over both. UTF-8 and UTF-16 files both parse, so a `.env.local`
+written by PowerShell's `>` redirect works — but `Set-Content -Encoding utf8` is still the
+tidier way to make one on Windows:
+
+```powershell
+Set-Content -Path .env.local -Value 'DATABASE_URL="postgresql://..."' -Encoding utf8
+```
+
 `GEMINI_API_KEY` is optional to start with — without it the app works fine, books just show no
 questions.
 
@@ -75,7 +84,8 @@ Phase 2 is `enabled: true` on a source in `src/lib/seed-sources.ts` plus a re-ru
 > these queries have not been run against the live endpoint yet.
 
 The **1001 Books** source is file-driven (`data/1001-books.tsv`, `title<TAB>author`) because
-Wikidata does not model that list. A 42-title sample ships as `data/1001-books.sample.tsv`.
+Wikidata does not model that list. A 42-title sample ships as `data/1001-books.sample.tsv` and
+is used automatically until you drop in the real file, so a fresh clone seeds something.
 The **widely-translated** source is the automatable stand-in for the canon problem: literary
 works with articles in 25+ languages, which finds *Black Beauty* where prize queries never
 would.
