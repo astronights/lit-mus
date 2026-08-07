@@ -7,6 +7,7 @@ import { properNounNames } from "@/lib/proper-nouns";
 import { fetchOpenLibrary } from "@/lib/sources/open-library";
 import { fetchWikidata } from "@/lib/sources/wikidata";
 import {
+  composeSourceDocument,
   fetchWikipediaPlot,
   searchWikipediaArticle,
   toShortBlurb,
@@ -53,6 +54,10 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
     : null;
 
   const plotText = wikipedia?.plotText ?? "";
+  const contextText = wikipedia?.contextText ?? "";
+  // One extract call gives us both; keeping the "about the work" half is what
+  // lets a clue reach for a legacy fact instead of restating the premise.
+  const sourceDocument = composeSourceDocument(plotText, contextText);
 
   // Wikidata P674 first; proper nouns from the plot when it has nothing.
   const characterNames =
@@ -66,6 +71,7 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
   // network blip -- so that stays a cache miss and gets retried next time.
   const gotSomething =
     Boolean(plotText) ||
+    Boolean(contextText) ||
     Boolean(openLibrary?.coverUrl) ||
     Boolean(openLibrary?.openLibraryId) ||
     characterNames.length > 0;
@@ -86,13 +92,15 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
     .where(eq(books.id, book.id))
     .returning();
 
-  if (plotText) {
+  if (sourceDocument) {
     await db
       .insert(plotBlurbs)
       .values({
         bookId: book.id,
-        shortBlurb: toShortBlurb(plotText),
-        sourceExtract: plotText,
+        // The card blurb stays plot-only; the stored extract is the wider
+        // document, since that is what generation reads.
+        shortBlurb: toShortBlurb(plotText || contextText),
+        sourceExtract: sourceDocument,
         sourceUrl: wikipedia?.articleUrl ?? null,
       })
       .onConflictDoUpdate({

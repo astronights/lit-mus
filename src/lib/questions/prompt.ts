@@ -40,7 +40,8 @@ export type PromptContext = {
   title: string;
   author: string | null;
   characters: string[];
-  plotText: string;
+  /** The stored Wikipedia document: "about the work" text plus the plot. */
+  sourceText: string;
 };
 
 /** Substitute the grounding context into the template's placeholders. */
@@ -54,7 +55,10 @@ export function renderPrompt(template: string, context: PromptContext): string {
         ? context.characters.map((name) => `- ${name}`).join("\n")
         : "(none supplied)",
     )
-    // Gemini Flash has a large context window, but a 30k-character plot section
+    // Gemini Flash has a large context window, but a 30k-character article
     // buys nothing for three questions and costs latency.
-    .replaceAll("{{PLOT}}", context.plotText.slice(0, 12_000));
+    .replaceAll(
+      "{{SOURCE}}",
+      context.sourceText.slice(0, 14_000) || "(no article text available)",
+    );
 }

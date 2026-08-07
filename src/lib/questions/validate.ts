@@ -1,27 +1,29 @@
-import { appearsInSource, normaliseForMatch } from "@/lib/proper-nouns";
+import { normaliseForMatch } from "@/lib/proper-nouns";
 
 /**
  * Validation of generated questions (Section 5a).
  *
- * The failure mode that matters is a hallucinated answer: a wrong answer you
- * memorise is worse than no answer at all. So a `detail` answer must appear
- * verbatim in the text the model was given, and a riddle must not leak the
- * title or author.
+ * **Scope changed deliberately.** The original design required every `detail`
+ * answer to appear verbatim in the fetched text, on the reasoning that a wrong
+ * answer you memorise is worse than no answer. In practice that rule also
+ * ruled out the questions actually worth asking -- the ones that connect the
+ * book to something real, which a plot summary never states outright.
  *
- * Weak-but-honest questions are allowed through. There is no review queue: a
- * merely weak question is not worth gating everything behind a manual step.
+ * So the model now writes from its own knowledge as well as the supplied
+ * article text, and the verbatim check is gone. What remains is the check that
+ * needs no outside truth to evaluate:
  *
- * A question that fails validation is stored with `pending_review` set and is
- * excluded from every read path (see `src/lib/questions/read.ts`). Storing it
- * rather than dropping it is what lets the maintenance script find and fix the
- * failures later -- generation is one-shot, so a dropped question is gone.
+ *   a riddle must not contain its own answer.
+ *
+ * That is a property of the string itself, so it stays enforceable. The
+ * accuracy of a detail answer is now the model's responsibility, backstopped by
+ * the `reported` flag rather than by automated validation.
  */
 
 export type ValidatedQuestion = {
   type: "title_riddle" | "detail";
   questionText: string;
   answer: string;
-  /** Kept, but flagged: shown to the user and findable by a maintenance script. */
   pendingReview: boolean;
   reviewReason?: string;
 };
@@ -29,7 +31,7 @@ export type ValidatedQuestion = {
 export type ValidationContext = {
   title: string;
   author: string | null;
-  plotText: string;
+  /** Character names, used only to stop the riddle naming one. */
   characterNames: string[];
 };
 
@@ -91,7 +93,6 @@ function validateRiddle(
   const question = asText(raw.question);
   if (!question) return null;
 
-  // The answer to a title riddle is the title, whatever the model echoed back.
   const leak = riddleLeak(question, context);
   if (leak) {
     // A riddle that names the book is not a riddle; there is no salvaging it,
@@ -103,6 +104,7 @@ function validateRiddle(
   return {
     type: "title_riddle",
     questionText: question,
+    // The answer to a title riddle is the title, whatever the model echoed back.
     answer: context.title,
     pendingReview: false,
   };
@@ -144,27 +146,21 @@ const TITLE_STOPWORDS = new Set([
   "novel", "being", "other", "where", "would", "could", "should", "years", "thing", "things",
 ]);
 
-function validateDetail(
-  raw: RawQuestion,
-  context: ValidationContext,
-): ValidatedQuestion | null {
+/**
+ * Detail questions are taken on trust now, with two exceptions that are
+ * self-evident from the strings alone: an answer that is just the book's title
+ * or its author is not a detail question, it is the riddle again.
+ */
+function validateDetail(raw: RawQuestion, context: ValidationContext): ValidatedQuestion | null {
   const question = asText(raw?.question);
   const answer = asText(raw?.answer);
   if (!question || !answer) return null;
 
-  // An answer the model could not have read is the one thing we refuse to
-  // store silently. Flag rather than drop: it may be a formatting difference
-  // ("Mr Rochester" vs "Rochester") rather than an invention, and the flag is
-  // what the maintenance script looks for.
-  const grounded = appearsInSource(answer, [context.plotText, ...context.characterNames]);
+  const normalisedAnswer = normaliseForMatch(answer);
+  if (normalisedAnswer === normaliseForMatch(context.title)) return null;
+  if (context.author && normalisedAnswer === normaliseForMatch(context.author)) return null;
 
-  return {
-    type: "detail",
-    questionText: question,
-    answer,
-    pendingReview: !grounded,
-    reviewReason: grounded ? undefined : "answer not found verbatim in source text",
-  };
+  return { type: "detail", questionText: question, answer, pendingReview: false };
 }
 
 function asText(value: unknown): string | null {

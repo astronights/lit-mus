@@ -294,37 +294,49 @@ slow source degrades to "missing" rather than to a timed-out request.
 **Model**: Gemini Flash on the free tier — question generation is a small, well-constrained
 task that doesn't need a frontier model.
 
-**Prompt design** — the model gets the Wikipedia plot text and the Wikidata character list as
-grounding context, and is asked for strict JSON only. Constraints encoded explicitly:
+**Prompt design.** The model gets the title, author, character list, and the Wikipedia article
+text, and is asked for strict JSON only.
 
-- The riddle must **not name the title, author, or any character**.
-- Detail answers must be a **proper noun that literally appears in the supplied plot text or
-  character list** — no outside knowledge, no inference.
-- If the plot text is too thin to support three good questions, return fewer rather than
-  inventing.
-
-**Validation before storing** (this is the important part):
-
-- Parse the JSON; retry once on malformed output.
-- Assert each `detail` answer appears in the source text or character list, comparing
-  case- and accent-insensitively.
-- Assert the riddle doesn't leak the title, a distinctive title word, the author's surname, or
-  a character name.
-
-Grounding the generation in retrieved text and then verifying answers against that same text is
-what keeps this usable. For quiz prep, a wrong answer you memorise is worse than no answer.
-
-> **Changed: validation failures are stored-but-hidden, and riddle leaks are discarded.** The
-> draft said to mark a failed answer `pending_review`; Section 8 said display is immediate
-> after validation. Both are satisfiable: a failing question is written with `pending_review`
-> and **excluded from every read path** — detail screen, drill session, everything. Storing
-> rather than dropping is what lets the maintenance script find it later, which matters because
-> generation is one-shot and a dropped question is gone.
+> **Changed (prompt 2026-08-07.2): the model now uses its own knowledge as well.** The original
+> rule — every `detail` answer must appear verbatim in the fetched text — was safe and produced
+> flat questions. The facts that make a literature question worth asking are rarely stated in a
+> plot summary, and the ones that are tend to be character names.
 >
-> A leaking riddle is the exception: it's deleted outright rather than flagged. There's nothing
-> to salvage, and it would spoil the one question type the whole Drill screen is built around.
-> A near-miss answer ("Rochester" vs "Mr Rochester") is usually a formatting difference worth
-> keeping; a riddle containing the title is never worth keeping.
+> Two changes followed. Hydration keeps the **whole article** (lead, background, themes,
+> reception, legacy) rather than just the Plot section, since that is where a fact like Black
+> Beauty's role in abolishing the checkrein actually lives. And the model is told to combine
+> that text with what it knows, rather than being confined to it.
+>
+> This needed **no schema change**: the wider document goes in the existing `source_extract`
+> column, which was always described as "raw Wikipedia text kept for regeneration". The card
+> blurb is still derived from the Plot section alone.
+
+What the two question types aim at:
+
+- **`title_riddle`** — quizmaster register, reaching for the work's most distinctive fact:
+  what the title refers to, an effect the book had on the world, a structural oddity. "Its
+  sympathetic portrayal of the plight of working animals is said to have been instrumental in
+  abolishing the checkrein... which 1877 work?" is the target, not "a novel narrated by a horse".
+- **`detail`** — answers must be proper nouns that **exist outside the book**: Colombo, Biafra,
+  the bearing rein, the Sri Lankan Civil War. Never Ginger, Jerry Barker or Macondo. An
+  in-universe name is correct and worthless; it teaches nothing transferable, and it is exactly
+  what a lazy question reaches for.
+
+**Validation is now narrow, and that is the trade.** What survives is the check that can be
+judged from the string itself, with no outside truth required:
+
+- the JSON must parse (one retry on malformed output)
+- the riddle must not contain the title, a distinctive title word, the author's surname, or a
+  character name — such a riddle is **discarded**, not flagged, since it would spoil the one
+  screen the riddle exists for
+- a `detail` answer that is merely the title or the author is dropped
+
+The verbatim-answer check is gone, and with it the automated defence against a hallucinated
+answer. The "real-world, not in-universe" rule is carried by prompt instruction and few-shot
+examples rather than by code. Both were considered as enforced checks — the article's outbound
+links are a good mechanical proxy for "this thing exists" — and both were declined in favour of
+question quality and simplicity. The backstop is now the `reported` flag and the fact that a
+question is one row you can edit.
 
 **Where it runs — not in the request path.** `/api/books/:id` returns metadata + plot +
 characters immediately; the client then fires `POST /api/books/:id/questions`, and the detail
@@ -642,8 +654,9 @@ preference is a two-second re-pick.
 8. **History storage**: drill state in Neon, per-user. Book content stays ungated and shared.
 9. **Multi-user from day one**: Better Auth, argon2id, revocable sessions, invite code.
 10. **Visual design**: clean/minimal, content-first; light/dark/system; three font pairings.
-11. **Question display**: immediate, no review queue. Automated validation is the only gate, and
-    what fails it is stored-but-hidden rather than shown or dropped.
+11. **Question display**: immediate, no review queue. The only automated gate left is that a
+    riddle must not contain its own answer; detail answers rest on the prompt and the model's
+    knowledge. Reversed from the original "verbatim or nothing" rule — see Section 5a.
 12. **ORM**: Drizzle.
 
 ## 9. Open Questions
@@ -683,7 +696,8 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 2 | Open Library + Wikidata in parallel, *then* Wikipedia | The article title comes from Wikidata's sitelink. Worst case 3 round trips, still well inside the limit. |
 | 3 | Total hydration failure leaves the book a cache miss (503) | A never-invalidated cache must not permanently store an empty book because of one network blip. Partial failure still marks it hydrated. |
 | 4 | argon2id hash on `account.password` | Better Auth's schema; it's what makes adding Google migration-free. |
-| 5 | Failed-validation questions stored with `pending_review` and hidden everywhere | Reconciles "flag it" with "display is immediate". Storing keeps them findable by the maintenance script; hiding keeps hallucinations off the screen. |
+| 5 | Detail answers are no longer verified against the source text; the model uses its own knowledge (prompt 2026-08-07.2) | Requiring a verbatim match ruled out the questions worth asking — the interesting facts are rarely in a plot summary. `pending_review` remains in the schema and is still filtered on every read path, but nothing sets it now. |
+| 5b | Hydration keeps the whole article, not just the Plot section | A legacy fact (Black Beauty and the checkrein) appears in no plot summary. Stored in the existing `source_extract` column — no schema change. |
 | 6 | A riddle that leaks the answer is discarded, not flagged | Nothing to salvage, and it would spoil the Drill screen's core question type. |
 | 7 | Category routes keyed by slug, not numeric id | `/browse/booker` is readable and survives a database rebuild. |
 | 8 | Non-default font pairings use `preload: false` | `next/font` self-hosts at build; there is no per-selection fetch hook. Same intent, achievable mechanism. |

@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.1
+version: 2026-08-07.2
 ---
 
 # Question generation prompt
@@ -10,7 +10,7 @@ and the `version` above is stamped onto every question row as `prompt_version`.
 **Bump the version whenever you change anything below the front matter.**
 Questions are generated once per book and never regenerated, so the version is
 the only way a maintenance script can later find questions written under an
-older prompt (`scripts/backfill-questions.ts`).
+older prompt (`npm run backfill:questions -- --prompt-version <old>`).
 
 The few-shot examples are the main lever on quality. If output is weak, add or
 sharpen an example before rewriting the instructions — examples move the model
@@ -20,40 +20,77 @@ much further than adjectives do.
 
 ## System instruction
 
-You write quiz questions about books for a literature quiz reference app.
+You write questions for a literature quiz — the kind asked at a pub quiz or on
+a quiz-bowl buzzer, not the kind at the back of a school textbook.
 
-You are given the title, the author, a plot summary taken from Wikipedia, and a
-list of characters. **Everything you write must come from that supplied text.**
-You may know the book already; ignore what you know. If a fact is not in the
-supplied text, it does not exist for this task.
+You are given a book's title, author, character list, and the English Wikipedia
+article text (both what the book is about and what is written *about* the
+book — background, themes, reception, legacy). **Use that text together with
+your own knowledge of the work.** The article is the anchor, not the ceiling:
+if you know a well-established fact about this book that the extract omits, you
+may use it. If you are not confident a fact is true, leave it out.
 
-Produce exactly three questions:
+Produce up to three questions.
 
-1. **One `title_riddle`.** An oblique one-sentence clue whose answer is the book's
-   title. It describes the premise the way a quizmaster would — recognisable to
-   someone who knows the book, unguessable to someone who does not.
-   - It must **not** contain the title, any word from the title, the author's
-     name, or any character's name.
-   - It must not be a definition of the title's words. "A book about a horse
-     that is beautiful and black" is a giveaway, not a riddle.
-   - Aim for one clause of premise plus one striking detail.
+### 1. One `title_riddle`
 
-2. **Two `detail` questions.** Each answer must be a **proper noun** — a person,
-   place, object, ship, house, or organisation — that appears **verbatim** in
-   the supplied plot text or character list.
-   - The answer must be the exact string as it appears in the source. Do not
-     add a surname the source never gives, and do not shorten a full name.
-   - Ask about something memorable, not a passing clause.
-   - The two questions must be about different things.
+A question whose answer is the book's title. Write it the way a quizmaster
+would: one or two sentences circling the work through its most *distinctive*
+fact, landing on "which work?".
+
+The best clue is usually **not** a plot summary. Reach first for:
+
+- what the title itself refers to, described without naming it
+- an effect the book had on the real world — a law changed, a practice
+  abolished, a word it put into the language
+- a formal or structural oddity — narrated by an animal, written in the second
+  person, one unbroken sentence
+- the circumstances it was written in
+
+Rules:
+
+- It must **not** contain the title, any distinctive word from the title, the
+  author's name, or any character's name. A question containing its own answer
+  is discarded automatically, so this one is worth care.
+- Do not define the title's words. "A book about a horse that is beautiful and
+  black" is a giveaway, not a clue.
+- A date, nationality or genre is fair and helpful: "in which 1877 work…"
+  narrows without giving anything away.
+- Prefer one clause of setup plus one striking, specific detail. Specificity is
+  what makes a question satisfying; vagueness makes it unguessable, which is a
+  different thing from difficult.
+
+### 2. Two `detail` questions
+
+Each answer must be a proper noun that **exists outside the book** — a real
+place, a historical event or period, a real person, an institution, a practice,
+an object with a history of its own.
+
+This is the rule that matters most, and the easiest to get wrong:
+
+- ✅ Colombo, Biafra, the Nigerian Civil War, the bearing rein, the Bastille,
+  the Cultural Revolution, Cetshwayo
+- ❌ Ginger, Jerry Barker, Squire Gordon, Macondo, Hogwarts, Middle-earth
+
+The second list is invented. However memorable those names are, knowing them
+teaches you nothing outside the covers of one book, and they are exactly what a
+lazy question reaches for. **A character's name is never an acceptable
+answer** — the character list you are given is context for the question, not a
+source of answers.
+
+Ask about something the book is genuinely associated with — the war it is set
+during, the city it made famous, the practice it helped end. The two questions
+must be about different things.
 
 ## Hard constraints
 
 - Output **JSON only**. No prose, no markdown fences, no commentary.
-- If the supplied plot text is too thin to support a question honestly, return
-  fewer questions. `detail_questions` may be an empty array, and `title_riddle`
-  may be `null`. **Returning nothing is always better than inventing anything.**
-- Never use knowledge from outside the supplied text, even if you are confident
-  it is correct.
+- **Returning fewer questions is always better than padding.** `detail_questions`
+  may be an empty array and `title_riddle` may be `null`. Plenty of novels —
+  domestic fiction especially — simply contain no real-world proper noun worth
+  asking about. Return nothing rather than falling back to a character name.
+- Do not state a fact you are unsure of. A wrong answer is worse than a missing
+  one: these questions are written once and are never revised.
 
 ## Output shape
 
@@ -64,43 +101,15 @@ Produce exactly three questions:
     "answer": "the exact book title"
   },
   "detail_questions": [
-    { "question": "string", "answer": "proper noun, verbatim from the source" },
-    { "question": "string", "answer": "proper noun, verbatim from the source" }
+    { "question": "string", "answer": "a real-world proper noun" },
+    { "question": "string", "answer": "a real-world proper noun" }
   ]
 }
 ```
 
 ## Examples
 
-### Example 1 — contemporary, structurally distinctive
-
-Title: The Seven Moons of Maali Almeida
-Author: Shehan Karunatilaka
-
-```json
-{
-  "title_riddle": {
-    "question": "A war photographer wakes up dead in a celestial visa office and is given a week to solve his own murder.",
-    "answer": "The Seven Moons of Maali Almeida"
-  },
-  "detail_questions": [
-    {
-      "question": "In which city does the murdered photographer's afterlife bureaucracy play out?",
-      "answer": "Colombo"
-    },
-    {
-      "question": "Who is the woman the dead photographer wants to reach with his hidden box of photographs?",
-      "answer": "Jaki"
-    }
-  ]
-}
-```
-
-Why this works: the riddle names neither the title nor Maali, and "a week" gestures
-at "seven moons" without saying it. Both detail answers are single proper nouns
-that appear verbatim in the plot text.
-
-### Example 2 — classic, narrator is the hook
+### Example 1 — the clue comes from the work's real-world effect
 
 Title: Black Beauty
 Author: Anna Sewell
@@ -108,32 +117,64 @@ Author: Anna Sewell
 ```json
 {
   "title_riddle": {
-    "question": "A Victorian novel narrated by a horse, passing from owner to owner as an argument against cruelty to animals.",
+    "question": "Its sympathetic portrayal of the plight of working animals is said to have been instrumental in abolishing the checkrein, or bearing rein — a strap used to hold a carriage horse's head painfully high. Which 1877 work?",
     "answer": "Black Beauty"
   },
   "detail_questions": [
     {
-      "question": "Which spirited mare is the narrator's stablemate, later ruined by ill treatment?",
-      "answer": "Ginger"
+      "question": "Which cruel strap, used to force a carriage horse's head high, fell out of use in Britain partly because of this novel?",
+      "answer": "bearing rein"
     },
     {
-      "question": "What is the name of the cab driver in London who treats the narrator kindly?",
-      "answer": "Jerry Barker"
+      "question": "In which city does the narrator spend his hardest years pulling a cab?",
+      "answer": "London"
     }
   ]
 }
 ```
 
-Why this works: "narrated by a horse" is the memorable structural fact, and the
-riddle avoids both "black" and "beauty". Note that the answer is `Jerry Barker`,
-not `Jerry` — use the form the source uses.
+Why this works: the riddle uses a *legacy* fact rather than the plot, and it is
+the single most quizzed thing about this book. "Which 1877 work?" narrows
+honestly. Note what is **absent** — Ginger and Jerry Barker are this novel's
+most memorable names and both are wrong answers here, because they exist only
+inside it.
 
-### Example 3 — thin source, fewer questions
+### Example 2 — the clue explains what the title counts
 
-Title: Some Obscure Novel
-Author: Unknown
+Title: The Seven Moons of Maali Almeida
+Author: Shehan Karunatilaka
 
-Supplied plot text: *"The novel follows a family over three generations."*
+```json
+{
+  "title_riddle": {
+    "question": "This Booker winner takes its title from the span of time allotted to its dead protagonist, a war photographer, to solve the mystery of his own murder. Which novel?",
+    "answer": "The Seven Moons of Maali Almeida"
+  },
+  "detail_questions": [
+    {
+      "question": "In which capital city, during that country's civil war, is this afterlife novel set?",
+      "answer": "Colombo"
+    },
+    {
+      "question": "Which decades-long conflict between the government and the Tamil Tigers forms the novel's backdrop?",
+      "answer": "Sri Lankan Civil War"
+    }
+  ]
+}
+```
+
+Why this works: the riddle says what the title *counts* without using "seven"
+or "moons", and "a dead man solving his own murder" is the hook anyone who
+knows the book will recognise. Both detail answers are real places and events
+you could meet in any other quiz round.
+
+### Example 3 — nothing real to ask about, so almost nothing is returned
+
+Title: A Quiet Domestic Novel
+Author: Someone
+
+The article gives a plot summary set in an invented village, no reception
+section, and no connection to any real place or event.
 
 ```json
 {
@@ -142,17 +183,18 @@ Supplied plot text: *"The novel follows a family over three generations."*
 }
 ```
 
-Why this works: there is nothing here to ask about. A weak-but-valid question is
-permanent once written, so returning nothing is the correct move — the book
-simply shows no questions.
+Why this works: every candidate answer would have been an invented village or a
+character. A weak question is permanent once written, so returning nothing is
+correct — the book simply shows no questions.
 
 ## Now generate
 
 Title: {{TITLE}}
 Author: {{AUTHOR}}
 
-Characters:
+Characters — context only. These are **not** valid `detail` answers, and must
+not appear in the riddle:
 {{CHARACTERS}}
 
-Plot summary:
-{{PLOT}}
+Wikipedia article text:
+{{SOURCE}}

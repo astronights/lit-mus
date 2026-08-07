@@ -10,6 +10,7 @@ import {
   parseGenerationResponse,
   validateQuestions,
   type ValidatedQuestion,
+  type ValidationContext,
 } from "@/lib/questions/validate";
 
 /**
@@ -71,7 +72,7 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
     title: book.title,
     author: book.author,
     characters: characterNames,
-    plotText: blurb.sourceExtract,
+    sourceText: blurb.sourceExtract,
   });
 
   let validated: ValidatedQuestion[];
@@ -79,7 +80,6 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
     validated = await generateAndValidate(prompt, {
       title: book.title,
       author: book.author,
-      plotText: blurb.sourceExtract,
       characterNames,
     });
   } catch (error) {
@@ -116,12 +116,7 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
  */
 async function generateAndValidate(
   prompt: string,
-  context: {
-    title: string;
-    author: string | null;
-    plotText: string;
-    characterNames: string[];
-  },
+  context: ValidationContext,
 ): Promise<ValidatedQuestion[]> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const raw = await generateJson(prompt);

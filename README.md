@@ -105,11 +105,30 @@ app. Two consequences worth knowing:
   question as `prompt_version`, which is what lets `npm run backfill:questions` find and
   regenerate old-prompt questions later.
 
-Validation before anything is shown: the JSON must parse (one retry on failure), each `detail`
-answer must appear **verbatim** in the plot text or character list, and the riddle must not
-leak the title, a distinctive title word, the author's surname, or a character name. A question
-failing the answer check is stored with `pending_review` and excluded from every read path —
-for quiz prep, a wrong answer you memorise is worse than no answer at all.
+### What the questions aim at
+
+The riddle is written in quizmaster register and reaches for the work's *most distinctive*
+fact, which is usually not its plot — the abolition of the checkrein for *Black Beauty*, what
+the title counts for *Maali Almeida*. That is why hydration keeps the whole article (lead,
+background, themes, reception, legacy) and not just the Plot section: a legacy fact appears in
+no plot summary.
+
+Detail answers must be proper nouns that **exist outside the book** — Colombo, Biafra, the
+bearing rein — never characters or invented places. Knowing that Black Beauty's stablemate is
+called Ginger teaches you nothing beyond that one novel.
+
+### What is and isn't checked
+
+The model writes from the article text **and its own knowledge**, so detail answers are not
+verified against the source. One thing is still enforced mechanically, because it can be judged
+from the string alone: a riddle containing the title, a distinctive title word, the author's
+surname, or a character name is discarded outright — a question containing its own answer would
+spoil the only screen the riddle exists for.
+
+Everything else rides on the prompt. That is a deliberate trade: grounding every answer in the
+fetched text ruled out most of the questions worth asking. The cost is that a confidently wrong
+answer can be stored, and since generation is one-shot it stays. If you spot one, edit the row
+directly or re-run `npm run backfill:questions`.
 
 ## Deploying
 

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { appearsInSource, properNounNames } from "@/lib/proper-nouns";
-import { extractPlotSection, splitSections, toShortBlurb } from "@/lib/sources/wikipedia";
+import {
+  composeSourceDocument,
+  extractContextSections,
+  extractPlotSection,
+  splitSections,
+  toShortBlurb,
+} from "@/lib/sources/wikipedia";
 import { dedupe } from "@/lib/seed-rows";
 
 const EXTRACT = `Black Beauty is an 1877 novel by the English author Anna Sewell.
@@ -12,7 +18,11 @@ where he meets Ginger, a chestnut mare with a bitter past. After an accident he 
 eventually pulling a London cab for Jerry Barker.
 
 == Reception ==
-The novel sold fifty million copies.`;
+The novel sold fifty million copies and its portrayal of working animals is said to have been
+instrumental in the abolition of the checkrein, or bearing rein.
+
+== Adaptations ==
+There have been several film versions.`;
 
 describe("extractPlotSection", () => {
   it("pulls the Plot section rather than the whole article", () => {
@@ -39,7 +49,49 @@ describe("extractPlotSection", () => {
 
   it("splits nested headings without losing the top-level ones", () => {
     const { sections } = splitSections(EXTRACT);
-    expect(sections.map((section) => section.heading)).toEqual(["Plot", "Reception"]);
+    expect(sections.map((section) => section.heading)).toEqual([
+      "Plot",
+      "Reception",
+      "Adaptations",
+    ]);
+  });
+});
+
+describe("extractContextSections", () => {
+  it("keeps the lead and the about-the-work sections", () => {
+    const context = extractContextSections(EXTRACT);
+
+    expect(context).toContain("1877 novel");
+    // The legacy fact the whole question style depends on.
+    expect(context).toContain("checkrein");
+  });
+
+  it("leaves the plot out, since that is fetched separately", () => {
+    expect(extractContextSections(EXTRACT)).not.toContain("Squire Gordon");
+  });
+
+  it("excludes adaptations, which generate questions about films not books", () => {
+    expect(extractContextSections(EXTRACT)).not.toContain("film versions");
+  });
+});
+
+describe("composeSourceDocument", () => {
+  it("labels both halves so the model can tell a legacy fact from a plot fact", () => {
+    const document = composeSourceDocument(
+      extractPlotSection(EXTRACT).text,
+      extractContextSections(EXTRACT),
+    );
+
+    expect(document).toContain("== About the work ==");
+    expect(document).toContain("== Plot ==");
+    expect(document.indexOf("== About the work ==")).toBeLessThan(document.indexOf("== Plot =="));
+    expect(document).toContain("checkrein");
+    expect(document).toContain("Squire Gordon");
+  });
+
+  it("omits a half that is empty rather than leaving a bare heading", () => {
+    expect(composeSourceDocument("", "Some background.")).toBe("== About the work ==\nSome background.");
+    expect(composeSourceDocument("", "")).toBe("");
   });
 });
 

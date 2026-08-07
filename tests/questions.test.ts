@@ -7,16 +7,9 @@ import {
   validateQuestions,
 } from "@/lib/questions/validate";
 
-const PLOT = `
-Maali Almeida, a war photographer, wakes up dead in a celestial visa office in Colombo.
-He is given seven moons to contact Jaki and DD and lead them to a hidden box of photographs
-that could shake the country.
-`;
-
 const CONTEXT = {
   title: "The Seven Moons of Maali Almeida",
   author: "Shehan Karunatilaka",
-  plotText: PLOT,
   characterNames: ["Maali Almeida", "Jaki", "DD"],
 };
 
@@ -36,11 +29,22 @@ describe("parseGenerationResponse", () => {
 });
 
 describe("riddleLeak", () => {
-  it("accepts an oblique clue", () => {
+  it("accepts a quizmaster-style clue that circles the title", () => {
     expect(
       riddleLeak(
-        "A war photographer wakes up dead and is given a week to solve his own murder.",
+        "This Booker winner takes its title from the span of time allotted to its dead " +
+          "protagonist, a war photographer, to solve the mystery of his own murder. Which novel?",
         CONTEXT,
+      ),
+    ).toBeNull();
+  });
+
+  it("accepts a clue built on the book's real-world legacy", () => {
+    expect(
+      riddleLeak(
+        "Its sympathetic portrayal of the plight of working animals is said to have been " +
+          "instrumental in abolishing the checkrein. Which 1877 work?",
+        { title: "Black Beauty", author: "Anna Sewell", characterNames: ["Ginger"] },
       ),
     ).toBeNull();
   });
@@ -65,10 +69,20 @@ describe("riddleLeak", () => {
       "character",
     );
   });
+
+  it("does not trip on short common words shared with the title", () => {
+    expect(
+      riddleLeak("Which novel follows a family over seven generations?", {
+        title: "The Sea",
+        author: "John Banville",
+        characterNames: [],
+      }),
+    ).toBeNull();
+  });
 });
 
 describe("validateQuestions", () => {
-  it("keeps grounded detail answers and answers the riddle with the title", () => {
+  it("keeps detail answers as written and answers the riddle with the title", () => {
     const questions = validateQuestions(
       {
         title_riddle: {
@@ -76,8 +90,8 @@ describe("validateQuestions", () => {
           answer: "whatever the model echoed",
         },
         detail_questions: [
-          { question: "In which city?", answer: "Colombo" },
-          { question: "Who holds the photographs?", answer: "Jaki" },
+          { question: "In which capital city is it set?", answer: "Colombo" },
+          { question: "Which conflict is the backdrop?", answer: "Sri Lankan Civil War" },
         ],
       },
       CONTEXT,
@@ -87,34 +101,41 @@ describe("validateQuestions", () => {
     expect(questions[0]!.type).toBe("title_riddle");
     // The riddle's answer is the title, not whatever the model returned.
     expect(questions[0]!.answer).toBe(CONTEXT.title);
+    expect(questions[1]!.answer).toBe("Colombo");
+    // Nothing is flagged any more: detail answers are taken on trust.
     expect(questions.every((question) => !question.pendingReview)).toBe(true);
   });
 
-  it("flags an answer that does not appear in the source", () => {
+  it("keeps an answer that appears nowhere in the article text", () => {
+    // The model is expected to bring outside knowledge now, so an answer the
+    // extract never mentions is the intended case rather than a failure.
     const questions = validateQuestions(
       {
         title_riddle: null,
-        detail_questions: [{ question: "Who is the killer?", answer: "Ranchagoda" }],
+        detail_questions: [
+          { question: "Which prize did it win in 2022?", answer: "Booker Prize" },
+        ],
       },
       CONTEXT,
     );
 
-    // Not in the plot text or the character list: this is the hallucination
-    // case, and a flagged question is excluded from every read path.
     expect(questions).toHaveLength(1);
-    expect(questions[0]!.pendingReview).toBe(true);
+    expect(questions[0]!.pendingReview).toBe(false);
   });
 
-  it("matches answers case- and accent-insensitively", () => {
+  it("drops a detail question whose answer is just the title or the author", () => {
     const questions = validateQuestions(
       {
         title_riddle: null,
-        detail_questions: [{ question: "Where?", answer: "colombo" }],
+        detail_questions: [
+          { question: "What is this book called?", answer: "The Seven Moons of Maali Almeida" },
+          { question: "Who wrote it?", answer: "Shehan Karunatilaka" },
+        ],
       },
       CONTEXT,
     );
 
-    expect(questions[0]!.pendingReview).toBe(false);
+    expect(questions).toHaveLength(0);
   });
 
   it("drops a riddle that leaks the answer rather than storing it", () => {
@@ -139,8 +160,8 @@ describe("validateQuestions", () => {
         title_riddle: null,
         detail_questions: [
           { question: "a", answer: "Colombo" },
-          { question: "b", answer: "Jaki" },
-          { question: "c", answer: "DD" },
+          { question: "b", answer: "Biafra" },
+          { question: "c", answer: "London" },
         ],
       },
       CONTEXT,
