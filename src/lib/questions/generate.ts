@@ -203,6 +203,12 @@ async function askGemini(bookId: number, input: GenerationInput): Promise<Genera
  *
  * The retry matters more than it looks: generation is one-shot, so a JSON blip
  * would otherwise cost the book its questions permanently.
+ *
+ * It retries only `QuestionParseError`, which is the genuinely random failure.
+ * A truncated response arrives as a `GeminiError` instead and is not retried on
+ * purpose -- identical parameters reproduce a truncation exactly, so the second
+ * call failed at almost the same character and cost a slot of a small daily
+ * quota to learn nothing.
  */
 async function generateAndValidate(
   prompt: string,
@@ -214,7 +220,12 @@ async function generateAndValidate(
       return validateQuestions(parseGenerationResponse(raw), context);
     } catch (error) {
       if (error instanceof QuestionParseError && attempt === 0) {
-        console.warn(`[questions] malformed JSON, retrying once: ${error.message}`);
+        // The snippet is the useful half: the message says where parsing gave
+        // up, the text says what it gave up on.
+        console.warn(
+          `[questions] malformed JSON, retrying once: ${error.message}\n` +
+            `  raw: ${raw.slice(0, 200).replace(/\s+/g, " ")}`,
+        );
         continue;
       }
       throw error;

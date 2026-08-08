@@ -279,8 +279,17 @@ export function withGeminiTurn<T>(run: () => Promise<T>): Promise<T> {
  * schema round trip; the parser still strips fences defensively.
  * Temperature is low-ish: riddles need some flair, but a creative model
  * inventing plot details is the exact failure we validate against.
+ *
+ * The token budget and the timeout are both sized for a *thinking* model, which
+ * is what the 2.5 and 3.x families are. Reasoning tokens are spent from the
+ * same `maxOutputTokens` budget as the answer, so the old 1,024 was mostly
+ * consumed before the JSON began and the response arrived truncated
+ * mid-string -- surfacing as "not valid JSON" at around column 130, which
+ * blamed the model for output we had cut off ourselves. For the same reason
+ * these calls are simply slower than a non-thinking model, and 20s was not
+ * enough to finish one.
  */
-export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<string> {
+export async function generateJson(prompt: string, timeoutMs = 60_000): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new GeminiError("GEMINI_API_KEY is not set");
 
@@ -302,7 +311,9 @@ export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<
         generationConfig: {
           responseMimeType: "application/json",
           temperature: 0.6,
-          maxOutputTokens: 1_024,
+          // Three short questions need a few hundred tokens; the rest of this
+          // is headroom for reasoning, which is charged to the same budget.
+          maxOutputTokens: 8_192,
         },
       }),
     });
@@ -331,6 +342,21 @@ export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<
 
     if (data.promptFeedback?.blockReason) {
       throw new GeminiError(`Gemini blocked the prompt: ${data.promptFeedback.blockReason}`);
+    }
+
+    /*
+     * A truncated response is not malformed output, and the difference matters
+     * to the caller: retrying identical parameters reproduces it exactly, so
+     * the retry-once-on-bad-JSON path was spending a second call to fail at
+     * almost the same character. Reported as its own error so it is not
+     * retried, and so the message names the budget rather than the model.
+     */
+    const finishReason = data.candidates?.[0]?.finishReason;
+    if (finishReason === "MAX_TOKENS") {
+      throw new GeminiError(
+        `Gemini hit maxOutputTokens for model "${model}" and returned a truncated response. ` +
+          `Thinking models spend this budget on reasoning before the answer begins.`,
+      );
     }
 
     const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("");
