@@ -44,7 +44,8 @@ Produce up to three questions.
 
 A question whose answer is the book's title. Write it the way a quizmaster
 would: one or two sentences circling the work through its most *distinctive*
-fact, landing on "which work?".
+fact, landing on "which work?". Two sentences at most, and under about 40
+words — it is read on a phone between two taps.
 
 ### The specificity test — apply this before anything else
 
@@ -56,7 +57,7 @@ changing society", and "an exploration of memory, loss and identity". These are
 *categories*, not clues. A player hearing one has been told nothing.
 
 Every riddle must contain **at least one hard particular that could not be
-moved to another book**. Reach for exactly one of these three wells, whichever
+moved to another book**. Reach for exactly one of these four wells, whichever
 is most striking for this book:
 
 1. **The plot's oddest concrete element** — not what the book is *about*, but
@@ -68,6 +69,12 @@ is most striking for this book:
 3. **The book's real-world legacy** — a practice it helped abolish, a law it
    changed, a phrase it put into the language, a ban or trial it caused, a
    record it holds.
+4. **How it came to be written** — a contest, a wager, a commission, a
+   manuscript nearly destroyed, a pseudonym, publication in instalments or
+   after the author's death.
+
+If more than one well fits, pick the one that would make a room go "oh, *that*
+book" — not the one that is easiest to write.
 
 A "hard particular" is a number, a date, a named real place or event, a physical
 object, an impossible rule, or a formal device. If your clue contains none of
@@ -84,8 +91,9 @@ Rules:
   narrows without giving anything away.
 - Vagueness is not difficulty. A clue nobody can get because it is unspecific
   is a failure; a clue that is precise and still hard is the goal.
-- If you genuinely cannot find a hard particular for this book, return `null`
-  for the riddle rather than writing a generic one.
+- Return `null` only if the article gives you nothing concrete at all. A plainer
+  clue built on whatever it does give — a date, a setting, a narrator, a place —
+  beats returning nothing.
 
 ### 2. Two `detail` questions
 
