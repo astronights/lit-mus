@@ -28,7 +28,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  const book = await db.query.books.findFirst({ where: eq(books.id, id) });
+  let book = await db.query.books.findFirst({ where: eq(books.id, id) });
   if (!book) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (!book.hydratedAt) {
@@ -39,7 +39,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!limiter.ok) return rateLimitResponse(limiter);
 
     try {
-      await hydrateBook(book);
+      book = await hydrateBook(book);
     } catch (error) {
       if (error instanceof HydrationFailedError) {
         // Nothing was written and the book stays a cache miss, so a retry is
@@ -53,7 +53,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
   }
 
-  const detail = await getBookDetail(id);
+  // Hand over the row we already have: on the cached path this takes the
+  // request from three sequential round trips to two.
+  const detail = await getBookDetail(id, book);
   if (!detail) return Response.json({ error: "Not found" }, { status: 404 });
 
   return Response.json({

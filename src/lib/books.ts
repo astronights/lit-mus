@@ -102,9 +102,19 @@ export async function listCategoryBooks(
   return rows.map(toSummary);
 }
 
-/** Everything the Book Detail screen needs, in one round of queries. */
-export async function getBookDetail(id: number): Promise<BookDetail | null> {
-  const book = await db.query.books.findFirst({ where: eq(books.id, id) });
+/**
+ * Everything the Book Detail screen needs.
+ *
+ * `known` lets a caller that has already loaded the book row hand it over. The
+ * Neon HTTP driver makes every statement its own request, so a re-fetch here is
+ * not a cheap cache hit -- it is a whole extra network round trip on the path
+ * users actually feel.
+ */
+export async function getBookDetail(
+  id: number,
+  known?: typeof books.$inferSelect,
+): Promise<BookDetail | null> {
+  const book = known ?? (await db.query.books.findFirst({ where: eq(books.id, id) }));
   if (!book) return null;
 
   const [categoryRows, blurb, questionRows] = await Promise.all([

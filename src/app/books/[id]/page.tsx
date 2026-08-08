@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Chip, ErrorNote, Loading, PageHeader } from "@/components/ui";
@@ -16,11 +16,31 @@ import { useApi } from "@/lib/use-api";
  * it fires the background generation request and fills section 5 in when it
  * lands.
  */
+/**
+ * Book Detail is reached from Browse *and* from Search, so the hard-coded
+ * `/search` href this replaces sent half the people who used it to the wrong
+ * tab. History gets you back where you actually came from; the push to Browse
+ * covers a cold arrival -- a shared link, or the PWA restoring this page --
+ * where there is no history entry to pop.
+ */
+function BackButton() {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
+      className="text-sm opacity-70 hover:opacity-100"
+    >
+      ← Back
+    </button>
+  );
+}
+
 export default function BookDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
-  const { data, error, loading } = useApi<{ book: BookDetail; questionsPending: boolean }>(
+  const { data, error, loading, reload } = useApi<{ book: BookDetail; questionsPending: boolean }>(
     id ? `/api/books/${id}` : null,
   );
 
@@ -60,17 +80,43 @@ export default function BookDetailPage() {
     };
   }, [data, id]);
 
-  if (loading) return <Loading label="Fetching this book…" />;
-  if (error) return <ErrorNote message={error} />;
+  // The back control renders in every state. It used to live inside the loaded
+  // branch, so a book that failed to fetch left you on a dead screen with no
+  // way out but the tab bar.
+  if (loading) {
+    return (
+      <>
+        <BackButton />
+        <Loading label="Fetching this book…" />
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <BackButton />
+        <div className="mt-3 space-y-3">
+          <ErrorNote message={error} />
+          <button
+            type="button"
+            onClick={reload}
+            className="ink-button w-full bg-surface px-4 py-2.5 font-display text-lg"
+          >
+            Try again
+          </button>
+        </div>
+      </>
+    );
+  }
+
   if (!data) return null;
 
   const book = data.book;
 
   return (
     <article className="pb-4">
-      <Link href="/search" className="text-sm text-muted-foreground hover:text-foreground">
-        ← Back
-      </Link>
+      <BackButton />
 
       <div className="mt-3 flex gap-4">
         {book.coverUrl ? (
