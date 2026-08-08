@@ -28,6 +28,8 @@
    * Book-spine pastels. Assigned per book so a list reads as a shelf; see
    * src/lib/shelf.ts for why it is derived from the id rather than stored.
    */
+  --ink-shadow: var(--ink);
+
   --shelf-1: oklch(0.87 0.062 145);
   --shelf-2: oklch(0.83 0.068 300);
   --shelf-3: oklch(0.89 0.052 95);
@@ -55,18 +57,33 @@
   --danger: oklch(0.72 0.16 25);
 
   /*
-   * The same eight hues, dropped in lightness and chroma. Reusing the pastels
-   * unchanged on a dark ground glares; keeping the hue angles means a book is
-   * recognisably "the green one" in either theme.
+   * Dark-mode spines are *saturated*, not just darkened.
+   *
+   * The first attempt simply dropped lightness and kept the pastel chroma. That
+   * is the classic dark-theme mistake: around L 0.4, low chroma reads as mud,
+   * so eight distinct pastels collapsed into olive, khaki and brown. Chroma has
+   * to rise as lightness falls for a colour to stay recognisably itself.
+   *
+   * The two yellow-family hues also had to move apart and *off* yellow: at low
+   * lightness any hue near h95 is olive, whatever its chroma. One became amber
+   * (h55) and the other bronze (h85, chroma pushed up so it reads as metal
+   * rather than mud). Pure yellow simply has no dark-mode form.
    */
-  --shelf-1: oklch(0.42 0.055 145);
-  --shelf-2: oklch(0.40 0.062 300);
-  --shelf-3: oklch(0.42 0.048 95);
-  --shelf-4: oklch(0.42 0.075 25);
-  --shelf-5: oklch(0.41 0.052 355);
-  --shelf-6: oklch(0.42 0.050 175);
-  --shelf-7: oklch(0.41 0.062 235);
-  --shelf-8: oklch(0.44 0.070 90);
+  --shelf-1: oklch(0.44 0.100 150);
+  --shelf-2: oklch(0.42 0.110 300);
+  --shelf-3: oklch(0.46 0.125 40);
+  --shelf-4: oklch(0.45 0.125 25);
+  --shelf-5: oklch(0.44 0.110 350);
+  --shelf-6: oklch(0.45 0.085 195);
+  --shelf-7: oklch(0.45 0.105 250);
+  --shelf-8: oklch(0.43 0.125 85);
+
+  /*
+   * The ink line stays near-white so cards still read as drawn, but the *shadow*
+   * is dimmed. At full ink brightness a 3px offset on a dark ground stops
+   * looking like a cast shadow and starts looking like a glow around every card.
+   */
+  --ink-shadow: oklch(0.62 0.015 85);
 }
 
 /* Font pairings (Section 5e). Comic is the default; the others stay available. */
@@ -146,7 +163,7 @@ h3,
 .ink-card {
   border: 2px solid var(--ink);
   border-radius: 0.85rem;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--ink-shadow);
   background-color: var(--surface);
 }
 
@@ -154,7 +171,7 @@ h3,
 .ink-button {
   border: 2px solid var(--ink);
   border-radius: 0.7rem;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--ink-shadow);
   transition:
     transform 120ms ease,
     box-shadow 120ms ease;
@@ -162,7 +179,7 @@ h3,
 
 .ink-button:active {
   transform: translate(3px, 3px);
-  box-shadow: 0 0 0 var(--ink);
+  box-shadow: 0 0 0 var(--ink-shadow);
 }
 
 /** Spine colours, applied by `data-shelf` so components stay free of palette. */

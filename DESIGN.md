@@ -581,8 +581,18 @@ excluded from drill sessions; the button itself is Phase 2.
 > Book covers are untouched — they are the one piece of real imagery in the app and they sit on
 > top of the tint rather than replacing it.
 >
-> Dark mode keeps the eight hue angles but drops lightness and chroma; the pastels glare on a
-> dark ground unchanged, and keeping the hues means a book stays recognisably "the green one".
+> **Dark mode is a separate palette, not a darkened one.** The obvious approach — same hues,
+> lower lightness, same chroma — produced mud: at around L 0.4, low chroma reads as olive and
+> khaki whatever hue you started from, and eight distinct pastels collapsed into three browns.
+> Chroma has to *rise* as lightness falls for a colour to stay recognisably itself.
+>
+> Two hues also had to move. Nothing near h95 survives darkening — pure yellow has no dark-mode
+> form — so the cream became rust (h40) and the gold became bronze (h85, chroma pushed up so it
+> reads as metal rather than dirt).
+>
+> The shadow is dimmed separately from the border (`--ink-shadow`). Keeping it at full ink
+> brightness made every card look like it was glowing rather than casting a shadow; the border
+> stays near-white so the drawn edge survives.
 
 ### Themes
 
