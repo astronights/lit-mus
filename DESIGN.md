@@ -744,6 +744,12 @@ preference is a two-second re-pick.
 - **Rate limiting**: Upstash Redis with an in-process fallback
 - **Styling**: Tailwind v4 + CSS custom properties; `next-themes`; `next/font`
 - **Mobile**: responsive UI + Web App Manifest
+- **Region**: the Vercel function region must match the Neon region, set in project settings.
+  Vercel defaults to `iad1` regardless of where you and your data are, and a function in
+  Virginia querying a database in Singapore paid a Pacific round trip *per query* — that was
+  the whole of a 1.9s book open, not the SQL. Deliberately not committed as `vercel.json`: it
+  is one setting per deployment, and a checked-in region is wrong for anyone whose database
+  sits elsewhere
 - **Tests**: Vitest — scheduling, question validation, source parsing
 
 ---
