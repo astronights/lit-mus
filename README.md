@@ -57,7 +57,8 @@ DATABASE_URL="postgresql://postgres@localhost:5432/litmus" npm run dev
 | `npm run db:generate` / `db:push` / `db:studio` | Drizzle migrations |
 | `npm run check:sources` | dry-run every seed source and report row counts |
 | `npm run seed` | bulk seed; idempotent, safe to re-run |
-| `npm run backfill:questions` | regenerate questions written under an old prompt |
+| `npm run questions:reset` | delete generated questions so they are written again on next open |
+| `npm run backfill:questions` | regenerate a batch right now, throttled |
 
 ## Tuning the prompt
 
@@ -68,20 +69,35 @@ generation with no restart.
 The examples move output far more than the instructions do. If questions come back flat, add or
 sharpen an example rather than adding adjectives.
 
-When you are happy with a change:
+The tuning loop:
 
-1. **Bump `version`** in the front matter. It is stamped on each question as `prompt_version`.
-2. Regenerate the books already opened under the old prompt:
+```bash
+npm run questions:reset -- --book 42   # or omit --book for all of them
+# open the book in the app, read what comes back, edit the prompt, repeat
+```
 
-   ```bash
-   npm run backfill:questions -- --prompt-version 2026-08-07.2 --rehydrate --limit 20
-   ```
+`questions:reset` deletes the generated questions and clears
+`questions_generated_at`, which is what makes a book eligible again. It makes **no Gemini
+calls** — the questions are written the next time someone opens the book, so you spend quota
+only on books you actually look at. It does **not** re-fetch anything from Wikipedia: plot
+text, covers and `hydrated_at` are left alone.
 
-   `--rehydrate` re-fetches the Wikipedia article first; needed only when the *stored text*
-   changes shape, not for ordinary prompt edits. Add `--dry-run` to see what would be touched.
+Bump `version` in the front matter when you settle on a change. It is stamped on each question
+as `prompt_version`, so `--prompt-version` can later target exactly the questions written under
+a superseded prompt:
 
-Iterating on one book is quickest against a local Postgres: open it, read the questions, edit
-the prompt, then backfill just that book.
+```bash
+npm run questions:reset -- --prompt-version 2026-08-07.2 --dry-run
+```
+
+`npm run backfill:questions` is the other direction — regenerate a batch immediately rather
+than lazily, throttled for the free tier. Its `--rehydrate` flag re-fetches the Wikipedia
+article, which is only needed when the *stored text* changes shape, not for ordinary prompt
+edits.
+
+One consequence worth knowing: a book hydrated before prompt `2026-08-07.3` has only its plot
+section stored, not the lead and heading list. Its questions will lean harder on the model's
+own knowledge. `--rehydrate` fixes that if you ever want it.
 
 ## How a book gets its content
 

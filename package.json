@@ -16,6 +16,7 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts",
     "check:sources": "tsx scripts/check-sources.ts",
+    "questions:reset": "tsx scripts/reset-questions.ts",
     "backfill:questions": "tsx scripts/backfill-questions.ts"
   },
   "dependencies": {
