@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.7
+version: 2026-08-07.8
 ---
 
 # Question generation prompt
@@ -294,8 +294,9 @@ correct — the book simply shows no questions.
 Title: {{TITLE}}
 Author: {{AUTHOR}}
 
-Characters — context only. These are **not** valid `detail` answers, and must
-not appear in the riddle:
+Characters — context, not a shortlist. A name here is only usable as an answer
+if it would be recognised by someone who has not read the book; it must never
+appear in the riddle:
 {{CHARACTERS}}
 
 Wikipedia article — lead, about-the-work sections, and plot:
