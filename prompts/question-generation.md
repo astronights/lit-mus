@@ -184,28 +184,19 @@ Author: Anna Sewell
     "answer": "Black Beauty"
   },
   "detail_questions": [
-    {
-      "question": "Which strap, used to force a carriage horse's head painfully high, fell out of use in Britain partly because of this novel?",
-      "answer": "bearing rein"
-    },
-    {
-      "question": "In which city does the narrator spend his hardest years pulling a cab?",
-      "answer": "London"
-    }
+    { "question": "Which strap, used to force a carriage horse's head painfully high, fell out of use in Britain partly because of this novel?", "answer": "bearing rein" },
+    { "question": "In which city does the narrator spend his hardest years pulling a cab?", "answer": "London" }
   ]
 }
 ```
 
-Why this works: the riddle uses a *legacy* fact rather than the plot, and it is
-the single most quizzed thing about this book. "Which 1877 work?" narrows
-honestly.
+Note the restraint: the riddle says "a cruel piece of Victorian harness" and does
+**not** name the bearing rein, precisely so the detail question can ask for it.
+Naming it in the riddle would have burned the answer.
 
-Note the deliberate restraint: the riddle says "a cruel piece of Victorian
-harness" and does **not** name the bearing rein, precisely so the first detail
-question can ask for it. Naming it in the riddle would have burned the answer.
-
-Note also what is **absent** — Ginger and Jerry Barker are this novel's most
-memorable names and both are wrong answers, because they exist only inside it.
+The two details differ in kind — an object and a place. And note what is absent:
+Ginger and Jerry Barker are this novel's most memorable names, and both are wrong
+answers, because nobody who has not read the book would know them.
 
 ### Example 2 — the clue explains what the title counts
 
@@ -219,31 +210,73 @@ Author: Shehan Karunatilaka
     "answer": "The Seven Moons of Maali Almeida"
   },
   "detail_questions": [
-    {
-      "question": "In which capital city, during that country's civil war, is this afterlife novel set?",
-      "answer": "Colombo"
-    },
-    {
-      "question": "Which decades-long conflict between the government and the Tamil Tigers forms the novel's backdrop?",
-      "answer": "Sri Lankan Civil War"
-    }
+    { "question": "In which capital city, during that country's civil war, is this afterlife novel set?", "answer": "Colombo" },
+    { "question": "Which decades-long conflict between the government and the Tamil Tigers forms the novel's backdrop?", "answer": "Sri Lankan Civil War" }
   ]
 }
 ```
 
-Why this works: the riddle says what the title *counts* without using "seven"
-or "moons", and "a dead man solving his own murder" is the hook anyone who
-knows the book will recognise. Both detail answers are real places and events
-you could meet in any other quiz round.
+The riddle says what the title *counts* without using "seven" or "moons". A place
+and an event, both worth knowing in any other quiz round.
 
-### Example 3 — nothing real to ask about, so almost nothing is returned
+### Example 3 — vague versus specific, and one detail is enough
+
+Title: Exit West
+Author: Mohsin Hamid
+
+**Rejected riddle:** "A journey about leaving one's homeland for an uncertain
+future. Which novel?"
+
+That describes hundreds of novels. It contains no hard particular and tells a
+player nothing. Rewrite it around the strangest concrete thing in the book:
+
+```json
+{
+  "title_riddle": {
+    "question": "In this 2017 Booker-shortlisted novel, refugees escape a city sliding into civil war not by boat or on foot, but through black doors that appear without warning in wardrobes and storerooms. Which novel?",
+    "answer": "Exit West"
+  },
+  "detail_questions": [
+    { "question": "Which Greek island do the couple first reach after stepping through a door?", "answer": "Mykonos" }
+  ]
+}
+```
+
+One detail question, not two. The novel's other memorable names are its invented
+doors and its deliberately unnamed city — neither is an answer — so a second
+question would have been padding. One good question beats two.
+
+### Example 4 — the clue is how the book came to be written
+
+Title: Frankenstein
+Author: Mary Shelley
+
+```json
+{
+  "title_riddle": {
+    "question": "Begun as a teenager's entry in a ghost-story contest during the volcanic 'year without a summer', it is often called the first science-fiction novel. Which 1818 work?",
+    "answer": "Frankenstein"
+  },
+  "detail_questions": [
+    { "question": "At which villa beside Lake Geneva was that ghost-story contest held?", "answer": "Villa Diodati" },
+    { "question": "The eruption of which Indonesian volcano caused the summerless year it was written in?", "answer": "Mount Tambora" }
+  ]
+}
+```
+
+The composition story is the most quizzed thing about this book, and the riddle
+gestures at the contest without naming the villa — again saving it for a detail.
+Mount Tambora is nowhere in the novel, but it is exactly the kind of fact a quiz
+rewards knowing.
+
+### Example 5 — nothing recognisable to ask about
 
 Title: A Quiet Domestic Novel
 Author: Someone
 
 The lead identifies a minor novel, there is no reception or legacy section, and
-the plot is set in an invented village with no connection to any real place or
-event.
+the plot is set in an invented village with no connection to any real place,
+event or person.
 
 ```json
 {
@@ -252,7 +285,7 @@ event.
 }
 ```
 
-Why this works: every candidate answer would have been an invented village or a
+Every candidate answer would have been an invented village or an obscure
 character. A weak question is permanent once written, so returning nothing is
 correct — the book simply shows no questions.
 
