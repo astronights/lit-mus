@@ -19,26 +19,59 @@ export type RateLimitResult = {
   resetSeconds: number;
 };
 
-/** First of these env vars with a non-empty value. */
-function firstEnv(...names: string[]): string | undefined {
-  for (const name of names) {
-    const value = process.env[name]?.trim();
-    if (value) return value;
-  }
-  return undefined;
+/**
+ * Which env vars hold the Upstash REST credentials.
+ *
+ * Takes the environment as an argument so it can be tested against the real
+ * variable names a deployment produces, rather than only the ones we document.
+ *
+ * Three spellings are accepted, in order: the name this app documents, the bare
+ * name Vercel writes with no prefix, then any prefixed variant. Vercel's Upstash
+ * integration writes under a prefix chosen when the store is connected, so the
+ * names arrive as e.g. `UPSTASH_REDIS_REST_KV_REST_API_URL`. Those are
+ * integration-managed and not editable by hand, so matching the suffix is what
+ * lets them be used as they are instead of copied into duplicates.
+ *
+ * The suffixes are exact about which of the integration's five variables to
+ * take, because the other three all fail *silently* -- the limiter falls back to
+ * per-instance counters and the app carries on working:
+ *
+ *   ...KV_REST_API_URL              yes
+ *   ...KV_REST_API_TOKEN            yes
+ *   ...KV_REST_API_READ_ONLY_TOKEN  no -- fails every INCR. Excluded because it
+ *                                        ends in READ_ONLY_TOKEN, not in
+ *                                        KV_REST_API_TOKEN.
+ *   ...KV_URL, ...REDIS_URL         no -- rediss:// TCP endpoints, which this
+ *                                        HTTPS REST client cannot speak to.
+ *                                        Excluded by the same suffix logic.
+ */
+export function resolveUpstashCredentials(env: Record<string, string | undefined>): {
+  url?: string;
+  token?: string;
+} {
+  const exact = (...names: string[]): string | undefined => {
+    for (const name of names) {
+      const value = env[name]?.trim();
+      if (value) return value;
+    }
+    return undefined;
+  };
+
+  // Sorted, so the choice stays deterministic if two stores are connected.
+  const bySuffix = (suffix: string): string | undefined => {
+    const key = Object.keys(env)
+      .filter((name) => name.endsWith(suffix) && env[name]?.trim())
+      .sort()[0];
+    return key ? env[key]!.trim() : undefined;
+  };
+
+  return {
+    url: exact("UPSTASH_REDIS_REST_URL", "KV_REST_API_URL") ?? bySuffix("KV_REST_API_URL"),
+    token: exact("UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN") ?? bySuffix("KV_REST_API_TOKEN"),
+  };
 }
 
-/*
- * Two spellings accepted. `UPSTASH_REDIS_REST_*` is what this app documents;
- * `KV_REST_API_*` is what Vercel's Upstash integration writes by itself, and
- * making people copy one into the other is a step at which the wrong value gets
- * picked. There are five variables in that integration's output and only two are
- * usable -- the read-only token silently fails every INCR, and the KV_URL /
- * REDIS_URL pair are rediss:// TCP endpoints that this HTTPS REST client cannot
- * speak to at all.
- */
-const redisUrl = firstEnv("UPSTASH_REDIS_REST_URL", "KV_REST_API_URL");
-const redisToken = firstEnv("UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN");
+const { url: redisUrl, token: redisToken } = resolveUpstashCredentials(process.env);
 
 /**
  * A `rediss://` URL here is the commonest way to configure this wrongly, and it

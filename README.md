@@ -37,6 +37,12 @@ Set-Content -Path .env.local -Value 'DATABASE_URL="postgresql://..."' -Encoding 
 `GEMINI_API_KEY` is optional to start with — without it the app works fine, books just show no
 questions.
 
+Rate limiting is optional but wanted in production: without it the Gemini daily cap, the 429
+cooldown and the call serialisation are all *per function instance*, which on Vercel is barely a
+limit. On Vercel, connect the Upstash Redis integration and there is nothing to configure — any
+variable ending in `KV_REST_API_URL` / `KV_REST_API_TOKEN` is picked up whatever prefix the
+integration gives it. Elsewhere, set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
+
 `INVITE_CODE` is optional too. Set it and signup asks for it; **leave it blank and signup is
 open**, with the field hidden. Opening it up is cheap in the way that matters — hydration and
 the Gemini call are paid once per *book*, globally, so the hundredth reader of a book costs
