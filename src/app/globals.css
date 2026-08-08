@@ -133,8 +133,13 @@ body {
   color: var(--foreground);
   font-family: var(--font-body-family);
   -webkit-font-smoothing: antialiased;
-  /* Room for the fixed tab bar plus the iOS home indicator. */
-  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  /*
+   * Clearance for the fixed tab bar deliberately does NOT live here. It used to,
+   * and it stacked with the `min-h-dvh` on the layout container: border-box only
+   * folds padding into a height on the *same* element, so every page came out
+   * 100dvh + 76px and scrolled by exactly the padding even when empty. The
+   * padding now sits on the container itself -- see app/layout.tsx.
+   */
 }
 
 h1,

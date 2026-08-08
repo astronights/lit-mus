@@ -92,7 +92,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
-          <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4">
+          {/*
+            The tab-bar clearance must be on this element, the one carrying
+            min-h-dvh, so border-box folds it into the 100dvh rather than adding
+            to it. Put it on <body> and every page scrolls by exactly the
+            padding, with nothing to scroll to.
+          */}
+          <div
+            className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4"
+            style={{ paddingBottom: "calc(4.75rem + env(safe-area-inset-bottom))" }}
+          >
             <main className="flex-1 pt-4">{children}</main>
           </div>
           <TabBar />
