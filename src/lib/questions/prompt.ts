@@ -58,10 +58,11 @@ export function renderPrompt(template: string, context: PromptContext): string {
         ? context.characters.map((name) => `- ${name}`).join("\n")
         : "(none supplied)",
     )
-    // The document is lead + headings + plot, so this cap only bites on the
-    // handful of articles with an unusually long plot summary.
+    // Lead and the about-the-work sections are capped at the source, so this
+    // only bites on articles with an unusually long plot summary -- and the
+    // plot is last in the document, so it is the right thing to lose.
     .replaceAll(
       "{{SOURCE}}",
-      context.sourceText.slice(0, 8_000) || "(no article text available)",
+      context.sourceText.slice(0, 14_000) || "(no article text available)",
     );
 }

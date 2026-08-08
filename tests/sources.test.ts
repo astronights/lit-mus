@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { appearsInSource, properNounNames } from "@/lib/proper-nouns";
 import {
   composeSourceDocument,
+  extractContextSections,
   extractLead,
   extractPlotSection,
-  extractSectionHeadings,
   splitSections,
   toShortBlurb,
 } from "@/lib/sources/wikipedia";
@@ -75,44 +75,58 @@ describe("extractLead", () => {
   });
 });
 
-describe("extractSectionHeadings", () => {
-  it("lists the headings without their contents", () => {
-    const headings = extractSectionHeadings(EXTRACT);
+describe("extractContextSections", () => {
+  it("keeps the about-the-work sections", () => {
+    const context = extractContextSections(EXTRACT);
 
-    expect(headings).toContain("Reception");
-    // The point is to signal a Legacy/Reception exists, not to carry its prose.
-    expect(headings.join(" ")).not.toContain("checkrein");
+    expect(context).toContain("Reception");
+    // The legacy fact that the whole question style depends on.
+    expect(context).toContain("checkrein");
   });
 
-  it("drops headings that describe no content of their own", () => {
-    const headings = extractSectionHeadings(
-      "Lead.\n\n== Legacy ==\nx\n\n== References ==\ny\n\n== External links ==\nz",
-    );
+  it("leaves the plot out, since that is carried separately", () => {
+    expect(extractContextSections(EXTRACT)).not.toContain("Squire Gordon");
+  });
 
-    expect(headings).toEqual(["Legacy"]);
+  it("excludes adaptations, which would generate questions about films", () => {
+    expect(extractContextSections(EXTRACT)).not.toContain("film versions");
+  });
+
+  it("caps itself so a huge reception section cannot crowd out the plot", () => {
+    const huge = `Lead.\n\n== Reception ==\n${"Critics praised it. ".repeat(2000)}`;
+    expect(extractContextSections(huge, 500).length).toBeLessThanOrEqual(501);
   });
 });
 
 describe("composeSourceDocument", () => {
-  it("carries the lead, the heading list and the plot -- and nothing else", () => {
+  it("carries the lead, the about-the-work sections and the plot", () => {
     const document = composeSourceDocument(
       extractPlotSection(EXTRACT).text,
       extractLead(EXTRACT),
-      extractSectionHeadings(EXTRACT),
+      extractContextSections(EXTRACT),
     );
 
     expect(document).toContain("== Lead ==");
-    expect(document).toContain("== Article sections ==");
+    expect(document).toContain("== About the work ==");
     expect(document).toContain("== Plot ==");
+    expect(document).toContain("checkrein");
     expect(document).toContain("Squire Gordon");
-    // The Reception prose is deliberately absent: the model knows this already,
-    // and carrying it was the bulkiest thing we stored.
-    expect(document).not.toContain("fifty million copies");
+  });
+
+  it("puts the plot last, so it is what gets truncated first", () => {
+    const document = composeSourceDocument(
+      extractPlotSection(EXTRACT).text,
+      extractLead(EXTRACT),
+      extractContextSections(EXTRACT),
+    );
+
+    expect(document.indexOf("== Lead ==")).toBeLessThan(document.indexOf("== About the work =="));
+    expect(document.indexOf("== About the work ==")).toBeLessThan(document.indexOf("== Plot =="));
   });
 
   it("omits a part that is empty rather than leaving a bare heading", () => {
-    expect(composeSourceDocument("", "Some lead.", [])).toBe("== Lead ==\nSome lead.");
-    expect(composeSourceDocument("", "", [])).toBe("");
+    expect(composeSourceDocument("", "Some lead.", "")).toBe("== Lead ==\nSome lead.");
+    expect(composeSourceDocument("", "", "")).toBe("");
   });
 });
 

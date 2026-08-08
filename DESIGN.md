@@ -316,16 +316,16 @@ text, and is asked for strict JSON only.
 > The model is now told to write from what it knows, using the article as the frame rather than
 > the ceiling.
 >
-> What we keep from Wikipedia is **lead + section headings + plot**, stored in the existing
-> `source_extract` column (no schema change; the card blurb still comes from the plot alone).
-> The lead identifies the book — year, prize, often what the title refers to. The heading list
-> tells the model what the article covers, so a "Legacy" heading points it at the kind of fact
-> that makes a good clue, without carrying the paragraph.
+> What we keep from Wikipedia is **lead + "about the work" sections + plot**, stored in the
+> existing `source_extract` column (no schema change; the card blurb still comes from the plot
+> alone). All three come from the one extract call that already returns the whole article, so
+> keeping them costs no extra request — only storage and prompt tokens.
 >
-> An intermediate version stored the full background/themes/reception/legacy prose as well. It
-> was dropped: once the model is allowed its own knowledge, that text mostly duplicated what it
-> already knew, and it was by far the bulkiest thing in the database. Prompt size fell from a
-> ~14,000-character cap to ~8,000.
+> An intermediate version kept only lead + a list of section headings, on the theory that the
+> model already knows the reception and legacy of these books. It does, for the canon. But the
+> contemporary translated fiction this app exists to cover is exactly where its knowledge is
+> thinnest, and where an unanchored answer is most likely to be confidently wrong — so the
+> section bodies came back. The value is concentrated in the books that need it most.
 
 What the two question types aim at:
 

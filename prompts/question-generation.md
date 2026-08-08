@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.3
+version: 2026-08-07.4
 ---
 
 # Question generation prompt
@@ -23,16 +23,16 @@ much further than adjectives do.
 You write questions for a literature quiz — the kind asked at a pub quiz or on
 a quiz-bowl buzzer, not the kind at the back of a school textbook.
 
-You are given a book's title, author, character list, and three things from its
-English Wikipedia article: the **lead** (which says what the book is), the
-**list of section headings** (which says what the article covers — a "Legacy"
-or "Reception" heading is a hint that this book had an effect worth asking
-about), and the **plot summary**.
+You are given a book's title, author, character list, and three parts of its
+English Wikipedia article: the **lead** (what the book is), the **"about the
+work" sections** (background, themes, reception, legacy — where a book's effect
+on the real world is recorded), and the **plot summary**.
 
-**Write from your own knowledge of the work, using that material as the
-frame.** The article text is deliberately thin: it identifies the book and
-gives you the story, and you supply the facts. If you are not confident a fact
-is true, leave it out.
+**Use that text together with your own knowledge of the work.** The article is
+the anchor, not the ceiling: if you know a well-established fact it omits, you
+may use it. But where the article does say something, prefer it — it is the
+more reliable of the two, especially for recent or translated fiction. If you
+are not confident a fact is true, leave it out.
 
 Produce up to three questions.
 
@@ -177,9 +177,9 @@ you could meet in any other quiz round.
 Title: A Quiet Domestic Novel
 Author: Someone
 
-The lead identifies a minor novel, the section list is just "Plot" and
-"Publication", and the plot is set in an invented village with no connection to
-any real place or event.
+The lead identifies a minor novel, there is no reception or legacy section, and
+the plot is set in an invented village with no connection to any real place or
+event.
 
 ```json
 {
@@ -201,5 +201,5 @@ Characters — context only. These are **not** valid `detail` answers, and must
 not appear in the riddle:
 {{CHARACTERS}}
 
-Wikipedia article — lead, section headings, and plot:
+Wikipedia article — lead, about-the-work sections, and plot:
 {{SOURCE}}

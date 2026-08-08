@@ -58,6 +58,7 @@ DATABASE_URL="postgresql://postgres@localhost:5432/litmus" npm run dev
 | `npm run check:sources` | dry-run every seed source and report row counts |
 | `npm run seed` | bulk seed; idempotent, safe to re-run |
 | `npm run questions:reset` | delete generated questions so they are written again on next open |
+| `npm run hydration:reset` | throw away everything fetched and start the pull from scratch |
 | `npm run backfill:questions` | regenerate a batch right now, throttled |
 
 ## Tuning the prompt
@@ -95,9 +96,24 @@ than lazily, throttled for the free tier. Its `--rehydrate` flag re-fetches the 
 article, which is only needed when the *stored text* changes shape, not for ordinary prompt
 edits.
 
-One consequence worth knowing: a book hydrated before prompt `2026-08-07.3` has only its plot
-section stored, not the lead and heading list. Its questions will lean harder on the model's
-own knowledge. `--rehydrate` fixes that if you ever want it.
+## Starting over
+
+To throw away everything fetched and pull it all again:
+
+```bash
+npm run hydration:reset          # dry run — reports what would go
+npm run hydration:reset -- --yes # do it
+```
+
+That clears `hydrated_at`, `questions_generated_at`, the stored article, the character list,
+the cover and the resolved Wikipedia title, and deletes every question. It keeps the seeded
+books themselves (title, author, `wikidata_id`, categories — seeding is the cheap part),
+accounts, and `book_drill_states`, so a book you had worked up to box 4 stays in box 4.
+
+Nothing is re-fetched by the script. Books re-hydrate lazily when someone opens them, which is
+the point of the cache-miss design: you pay for the books you actually look at.
+
+Scope it to one book with `--book <id>`.
 
 ## How a book gets its content
 
@@ -151,12 +167,15 @@ The riddle is written in quizmaster register and reaches for the work's *most di
 fact, which is usually not its plot — the abolition of the checkrein for *Black Beauty*, what
 the title counts for *Maali Almeida*.
 
-What we store from Wikipedia is deliberately thin: the **lead**, the **list of section
-headings**, and the **plot**. The lead says what the book is, the headings say what the article
-covers (a "Legacy" heading is a hint that this book had an effect worth asking about), and the
-model supplies the facts from its own knowledge. Carrying the full Reception and Legacy prose
-was tried and dropped — it was the bulkiest thing stored and it duplicated what the model
-already knew.
+What we store from Wikipedia is the **lead**, the **"about the work" sections** (background,
+themes, reception, legacy) and the **plot** — in that order, since the plot is the part worth
+truncating first. All three come out of the single extract call that already returns the whole
+article, so keeping them costs no extra request.
+
+A leaner version storing only lead + section headings was tried on the theory that the model
+already knows the canon. It does — but the contemporary translated fiction this app exists to
+cover is exactly where its knowledge is thinnest, and where an unanchored answer is most likely
+to be confidently wrong. The reception and legacy text is the anchor for those books.
 
 Detail answers must be proper nouns that **exist outside the book** — Colombo, Biafra, the
 bearing rein — never characters or invented places. Knowing that Black Beauty's stablemate is

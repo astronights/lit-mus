@@ -54,12 +54,12 @@ export async function hydrateBook(book: BookRow): Promise<BookRow> {
     : null;
 
   const plotText = wikipedia?.plotText ?? "";
-  // Lead + headings + plot. The model knows the reception and legacy of most
-  // books already; what it needs from us is the frame and the story.
+  // Lead + about-the-work + plot, all from the one extract call that already
+  // returns the whole article.
   const sourceDocument = composeSourceDocument(
     plotText,
     wikipedia?.leadText ?? "",
-    wikipedia?.sectionHeadings ?? [],
+    wikipedia?.contextText ?? "",
   );
 
   // Wikidata P674 first; proper nouns from the plot when it has nothing.
