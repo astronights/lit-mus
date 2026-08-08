@@ -145,10 +145,15 @@ naming it — and save the name for the detail question.
 - Output **JSON only**. No prose, no markdown fences, no commentary.
 - **Returning fewer questions is always better than padding.** `detail_questions`
   may be an empty array and `title_riddle` may be `null`. Plenty of novels —
-  domestic fiction especially — simply contain no real-world proper noun worth
-  asking about. Return nothing rather than falling back to a character name.
+  domestic fiction especially — contain no proper noun anyone would recognise
+  outside them. Return nothing rather than falling back to a name that means
+  nothing beyond this book.
+- **An answer is a name or a short phrase**, at most a few words. It is shown on
+  its own as *the answer*, so explanations belong in the question. "bearing
+  rein", not "the bearing rein, a strap used on carriage horses".
 - Do not state a fact you are unsure of. A wrong answer is worse than a missing
-  one: these questions are written once and are never revised.
+  one: these questions are written once and are never revised. This applies to
+  what you *recall* — a fact stated in the supplied article can be used freely.
 
 ## Output shape
 
@@ -159,8 +164,8 @@ naming it — and save the name for the detail question.
     "answer": "the exact book title"
   },
   "detail_questions": [
-    { "question": "string", "answer": "a real-world proper noun" },
-    { "question": "string", "answer": "a real-world proper noun" }
+    { "question": "string", "answer": "a proper noun recognisable outside this book" },
+    { "question": "string", "answer": "a proper noun recognisable outside this book" }
   ]
 }
 ```
