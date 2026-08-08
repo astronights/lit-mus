@@ -647,8 +647,35 @@ username, password reset isn't merely unbuilt, it's *impossible*.
 **Deliberately skipped: password reset.** Needs an email service; a forgotten password is a
 two-minute fix in Neon at this scale.
 
-**Also skipped: email verification and self-serve signup.** Signup requires an `INVITE_CODE`
-env var — one line of check, and it keeps the door shut without building an invite system.
+**Signup is gated by an `INVITE_CODE` env var** — one line of check, and it keeps the door shut
+without building an invite system. Email verification is still skipped; it needs an email
+service.
+
+> **Changed: leaving `INVITE_CODE` unset now means open signup**, rather than an error. It used
+> to throw `INTERNAL_SERVER_ERROR`, on the reasoning that an open form on a public URL just
+> collects junk accounts.
+>
+> What makes an open door affordable here is where the money actually goes. Hydration and the
+> Gemini call are paid **once per book, globally** — the second person to read a book costs
+> nothing, and the hundredth costs nothing. More readers do not multiply API spend. What they do
+> is reach the *unopened* books sooner, so the ceiling on cost is the size of the catalogue
+> (~2,000 books ≈ 2,000 lifetime Gemini calls), not the number of accounts.
+>
+> The exposure that does scale with people is account spam, so the open path keeps two guards:
+> the existing per-IP signup limit (5/hour), and `MAX_ACCOUNTS`, a hard ceiling checked on every
+> signup. The rate limit slows a script down; only the ceiling stops it.
+>
+> The decision is read in two places — the form, to know whether to show the field, and the auth
+> hook, to know whether to demand one. They must agree or signup breaks with nothing on screen
+> to explain it, so both call `inviteRequired()` in `src/lib/signup-policy.ts`, which is kept
+> free of database imports so it can be unit-tested. `/signin` is `force-dynamic` for the same
+> reason: prerendered, the answer would be baked in at build time and blanking the variable in a
+> dashboard would leave the form still asking for a code.
+>
+> **Still worth knowing before opening it up:** the *daily* Gemini allowance is global and
+> shared, so several people drilling on the same day drain it faster and the last of them sees
+> "no new questions today". There is no per-user generation budget. Books already generated are
+> unaffected — they are a pure DB read.
 
 ### What multi-user newly requires
 

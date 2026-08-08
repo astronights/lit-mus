@@ -1,11 +1,13 @@
 import { hash as argonHash, verify as argonVerify } from "@node-rs/argon2";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { count } from "drizzle-orm";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 
 import { db } from "@/db";
 import { account, session, user, verification } from "@/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
+import { accountCeiling, inviteRequired } from "@/lib/signup-policy";
 
 /**
  * Better Auth: email + password, argon2id, database-backed sessions.
@@ -84,16 +86,29 @@ export const auth = betterAuth({
       const body = (ctx.body ?? {}) as Record<string, unknown>;
 
       if (ctx.path === "/sign-up/email") {
-        const expected = process.env.INVITE_CODE;
-        if (!expected) {
-          throw new APIError("INTERNAL_SERVER_ERROR", {
-            message: "Signup is not configured. Set INVITE_CODE.",
-          });
+        /*
+         * INVITE_CODE unset means open signup, and that is a supported
+         * configuration rather than a misconfiguration.
+         *
+         * It used to throw. The reasoning was that a public URL with an open
+         * form collects junk accounts -- still true -- but the cost model here
+         * makes an open door cheap in the way that matters: hydration and the
+         * Gemini call are paid once per *book*, globally, so the second person
+         * to read a book costs nothing and the hundredth costs nothing. More
+         * readers do not multiply the API spend; they only reach the unopened
+         * books sooner.
+         *
+         * What is left to defend against is account spam, which is what the
+         * per-IP signup limit above and the ceiling below are for.
+         */
+        if (inviteRequired()) {
+          const supplied = typeof body.inviteCode === "string" ? body.inviteCode : "";
+          if (!timingSafeEqual(supplied, process.env.INVITE_CODE!.trim())) {
+            throw new APIError("FORBIDDEN", { message: "That invite code isn't right." });
+          }
         }
-        const supplied = typeof body.inviteCode === "string" ? body.inviteCode : "";
-        if (!timingSafeEqual(supplied, expected)) {
-          throw new APIError("FORBIDDEN", { message: "That invite code isn't right." });
-        }
+
+        await enforceAccountCeiling();
       }
 
       if (ctx.path === "/sign-in/email") {
@@ -111,6 +126,31 @@ export const auth = betterAuth({
     }),
   },
 });
+
+/**
+ * Hard ceiling on accounts, so an open signup form cannot grow without bound.
+ *
+ * `MAX_ACCOUNTS` unset means no ceiling, which is right when INVITE_CODE is
+ * doing the gatekeeping. With the code removed it is the only thing standing
+ * between a public form and however many rows a script cares to make: the
+ * per-IP limit slows that down, it does not stop it.
+ *
+ * A count on every signup is one cheap query on a table that will never be
+ * large, and signup is rare by nature.
+ */
+async function enforceAccountCeiling(): Promise<void> {
+  const ceiling = accountCeiling();
+  if (ceiling === null) return;
+
+  const [row] = await db.select({ total: count() }).from(user);
+  if ((row?.total ?? 0) >= ceiling) {
+    // Deliberately not "the app is full of spam": the honest reading for a
+    // real person hitting this is that signups are closed.
+    throw new APIError("FORBIDDEN", {
+      message: "Signups are closed for now — this deployment is at its account limit.",
+    });
+  }
+}
 
 /**
  * Constant-time string comparison. Length is not secret here (the invite code

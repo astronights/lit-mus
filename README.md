@@ -37,6 +37,13 @@ Set-Content -Path .env.local -Value 'DATABASE_URL="postgresql://..."' -Encoding 
 `GEMINI_API_KEY` is optional to start with — without it the app works fine, books just show no
 questions.
 
+`INVITE_CODE` is optional too. Set it and signup asks for it; **leave it blank and signup is
+open**, with the field hidden. Opening it up is cheap in the way that matters — hydration and
+the Gemini call are paid once per *book*, globally, so the hundredth reader of a book costs
+nothing — but set `MAX_ACCOUNTS` if you do, because the per-IP signup limit slows a script down
+without stopping it. Note that the *daily* Gemini allowance is shared across everyone, so
+several people drilling on one day means the last of them sees no newly generated questions.
+
 ### Local Postgres instead of Neon
 
 Point `DATABASE_URL` at `localhost` and the DB module switches to `node-postgres`
