@@ -18,7 +18,7 @@
 // Must stay first: loads .env.local before any module reads process.env.
 import "@/lib/env-init";
 
-import { geminiModel } from "@/lib/questions/gemini";
+import { resolveModel, scoreModel } from "@/lib/questions/gemini";
 
 type ModelInfo = {
   name: string;
@@ -37,7 +37,6 @@ async function main() {
   }
 
   const all = process.argv.includes("--all");
-  const configured = geminiModel();
 
   const models: ModelInfo[] = [];
   let pageToken: string | undefined;
@@ -65,24 +64,36 @@ async function main() {
 
   usable.sort((a, b) => a.name.localeCompare(b.name));
 
-  let configuredFound = false;
+  // What the app would actually call, given this key and this environment.
+  const chosen = await resolveModel();
+  const override = process.env.GEMINI_MODEL?.trim();
+
+  let chosenFound = false;
 
   for (const model of usable) {
     // The API returns "models/gemini-x"; GEMINI_MODEL takes the bare id.
     const id = model.name.replace(/^models\//, "");
-    const current = id === configured;
-    if (current) configuredFound = true;
+    const current = id === chosen;
+    if (current) chosenFound = true;
 
-    console.log(
-      `${current ? "->" : "  "} ${id.padEnd(42)} ${model.displayName ?? ""}`,
-    );
+    // The score is shown so the ranking is inspectable rather than magic: if
+    // the pick looks wrong, the number says which rule decided it.
+    const score = scoreModel(id);
+    const rank = score >= 0 ? String(score).padStart(4) : "   -";
+
+    console.log(`${current ? "->" : "  "} ${rank}  ${id.padEnd(42)} ${model.displayName ?? ""}`);
   }
 
   console.log(`\n${usable.length} model(s) support generateContent.`);
-  console.log(`GEMINI_MODEL is ${configured}${configuredFound ? "" : "  <-- NOT IN THE LIST ABOVE"}`);
+  console.log(
+    override
+      ? `GEMINI_MODEL is set to "${chosen}", so that is what the app calls.`
+      : `No GEMINI_MODEL set; the app auto-selects "${chosen}".`,
+  );
 
-  if (!configuredFound) {
-    console.log("\nEvery generation call will 404 until this is a listed id.");
+  if (!chosenFound) {
+    console.log("\n  ^ NOT IN THE LIST ABOVE. Every generation call will 404 until it is.");
+    if (override) console.log("    Unset GEMINI_MODEL to let the app pick for itself.");
     process.exit(1);
   }
 

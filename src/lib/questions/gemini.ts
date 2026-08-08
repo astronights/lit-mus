@@ -122,21 +122,122 @@ type GenerateContentResponse = {
 };
 
 /**
- * The default is chosen for being a stable id, not for being the best model.
- *
- * Set GEMINI_MODEL to a current Gemini 3 Flash or Flash-Lite and this app gets
- * better: recall is the thing the riddles live on -- they lean on the model
- * knowing a book past the blurb we hand it -- and the newer free allowances are
- * larger, which matters because one book is one call and a session is a dozen.
- *
- * The reason that is not hard-coded here is that model ids move: the 3.x family
- * switched to a dotted scheme, preview ids get retired, dated suffixes come and
- * go. A wrong id 404s on every single call rather than degrading, so the
- * default stays on something long-lived and `npm run check:models` prints the
- * ids the configured key can actually use.
+ * Used only when the key cannot be asked -- see `resolveModel`. Long-lived id,
+ * chosen for still existing rather than for being the best available.
  */
+const FALLBACK_MODEL = "gemini-2.5-flash-lite";
+
+/** The configured model, or the fallback. Synchronous; does not resolve. */
 export function geminiModel(): string {
-  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite";
+  return process.env.GEMINI_MODEL?.trim() || FALLBACK_MODEL;
+}
+
+/**
+ * How much we want a given model, from its id alone. Higher is better; -1 means
+ * "not a candidate".
+ *
+ * This exists instead of a hard-coded model name because the ids move faster
+ * than the repo does — the 3.x family switched to a dotted scheme, preview ids
+ * are retired on a schedule, dated suffixes come and go — and a wrong id 404s on
+ * *every* call rather than degrading. Ranking a live list is the version of
+ * "use the newest good model" that keeps working after the next rename.
+ *
+ * The ordering encodes what this app actually needs:
+ *  - newer family first; recall is what the riddles live on
+ *  - Flash over Flash-Lite over Pro. Not a quality ordering — Pro is better and
+ *    its free daily allowance is far too small for a dozen-call session
+ *  - stable over preview, undated alias over a pinned date
+ */
+export function scoreModel(id: string): number {
+  const family = id.match(/^gemini-(\d+(?:\.\d+)?)-/);
+  if (!family) return -1;
+
+  // Anything that is not a plain text generator: embeddings, images, speech,
+  // the realtime endpoints. `generateContent` alone does not exclude these.
+  if (/embedding|aqa|image|imagen|tts|audio|live|veo|vision|robotics|computer-use/.test(id)) {
+    return -1;
+  }
+
+  let score = Number(family[1]) * 100;
+
+  if (/-flash-lite\b/.test(id)) score += 10;
+  else if (/-flash\b/.test(id)) score += 20;
+  else if (/-pro\b/.test(id)) score += 5;
+  else return -1;
+
+  if (/preview|-exp\b|experimental/.test(id)) score -= 3;
+  // "gemini-3-flash" over "gemini-3-flash-09-2026": the bare alias keeps
+  // working when the dated build is retired.
+  if (/\d{2}-\d{4}$|\d{4}-\d{2}-\d{2}$/.test(id)) score -= 1;
+
+  return score;
+}
+
+let resolved: string | null = null;
+let resolving: Promise<string> | null = null;
+
+/**
+ * The model to actually call.
+ *
+ * `GEMINI_MODEL` wins outright when set — an explicit choice is never
+ * second-guessed. Otherwise the key is asked what it can use and the best
+ * candidate wins, cached for the life of the process.
+ *
+ * A failure to list is not fatal and is deliberately *not* cached: it returns
+ * the fallback and tries again next time, so a blip during one cold start does
+ * not pin an instance to an old model for as long as it lives.
+ */
+export async function resolveModel(): Promise<string> {
+  const configured = process.env.GEMINI_MODEL?.trim();
+  if (configured) return configured;
+  if (resolved) return resolved;
+  // Share one lookup: with generation serialised this is rare, but two callers
+  // racing on a cold start should not both spend a round trip.
+  if (resolving) return resolving;
+
+  resolving = pickBestAvailable()
+    .then((id) => {
+      resolved = id;
+      console.log(`[questions] using Gemini model "${id}" (auto-selected)`);
+      return id;
+    })
+    .catch((error) => {
+      console.warn(
+        `[questions] could not list models (${error instanceof Error ? error.message : error}); ` +
+          `falling back to "${FALLBACK_MODEL}"`,
+      );
+      return FALLBACK_MODEL;
+    })
+    .finally(() => {
+      resolving = null;
+    });
+
+  return resolving;
+}
+
+async function pickBestAvailable(): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new GeminiError("GEMINI_API_KEY is not set");
+
+  const response = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+    { headers: { "x-goog-api-key": apiKey }, signal: AbortSignal.timeout(10_000) },
+  );
+  if (!response.ok) throw new GeminiError(`ListModels returned ${response.status}`, response.status);
+
+  const data = (await response.json()) as {
+    models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
+  };
+
+  const best = (data.models ?? [])
+    .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+    .map((model) => (model.name ?? "").replace(/^models\//, ""))
+    .map((id) => ({ id, score: scoreModel(id) }))
+    .filter((candidate) => candidate.score >= 0)
+    .sort((a, b) => b.score - a.score || a.id.length - b.id.length)[0];
+
+  if (!best) throw new GeminiError("no usable model in ListModels response");
+  return best.id;
 }
 
 export function isGeminiConfigured(): boolean {
@@ -183,11 +284,13 @@ export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new GeminiError("GEMINI_API_KEY is not set");
 
+  const model = await resolveModel();
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${ENDPOINT}/${geminiModel()}:generateContent`, {
+    const response = await fetch(`${ENDPOINT}/${model}:generateContent`, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -211,7 +314,7 @@ export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<
       // which looks like "generation is broken" rather than "one setting is
       // off". `npm run check:models` lists the ids this key can use.
       const error = new GeminiError(
-        `Gemini returned ${response.status} for model "${geminiModel()}": ${body.slice(0, 300)}`,
+        `Gemini returned ${response.status} for model "${model}": ${body.slice(0, 300)}`,
         response.status,
       );
 

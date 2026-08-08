@@ -6,9 +6,9 @@ import { cooldownRemaining, markCooldown, rateLimit } from "@/lib/rate-limit";
 import {
   GeminiError,
   generateJson,
-  geminiModel,
   isGeminiConfigured,
   quotaCooldown,
+  resolveModel,
   withGeminiTurn,
 } from "@/lib/questions/gemini";
 import { loadPrompt, renderPrompt } from "@/lib/questions/prompt";
@@ -179,13 +179,16 @@ async function askGemini(bookId: number, input: GenerationInput): Promise<Genera
   }
 
   if (validated.length > 0) {
+    // Cached after the first call, so this is not a per-book round trip.
+    const model = await resolveModel();
+
     await db.insert(quizQuestions).values(
       validated.map((question) => ({
         bookId,
         type: question.type,
         questionText: question.questionText,
         answer: question.answer,
-        generatedBy: geminiModel(),
+        generatedBy: model,
         promptVersion: version,
       })),
     );

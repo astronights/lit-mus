@@ -322,17 +322,28 @@ slow source degrades to "missing" rather than to a timed-out request.
 
 ## 5a. Question Generation (Gemini Flash)
 
-**Model**: Gemini Flash on the free tier — question generation is a small, well-constrained
-task that doesn't need a frontier model. `GEMINI_MODEL` selects it; the built-in default
-(`gemini-2.5-flash-lite`) is chosen for being a **stable id**, not the best available, and a
-current Gemini 3 Flash is the better setting where the key offers one.
+**Model**: chosen at runtime, not hard-coded. Question generation is a small, well-constrained
+task that doesn't need a frontier model, but it does need the *current* one.
 
-Model ids are deliberately not curated in the repo. They move — the 3.x family switched to a
-dotted scheme, preview ids are retired on a schedule, dated suffixes come and go — and a stale
-id 404s on *every* call rather than degrading, which in the app reads as "generation is broken"
-rather than "one setting is out of date". `npm run check:models` asks Google what the
-configured key can use and flags `GEMINI_MODEL` if it isn't on the list. Pick from that, not
-from a table.
+Model ids move faster than this repo does — the 3.x family switched to a dotted scheme, preview
+ids are retired on a schedule, dated suffixes come and go — and a stale id 404s on *every* call
+rather than degrading, which in the app reads as "generation is broken" rather than "one setting
+is out of date". So `resolveModel()` asks the key what it can use and ranks the answer
+(`scoreModel`), caching the winner for the life of the process. The ranking is the part worth
+reviewing, and it is unit-tested:
+
+| Rule | Why |
+|---|---|
+| Newer family first | Recall is what the riddles live on |
+| Flash > Flash-Lite > Pro | **Not** a quality ordering. Pro is better and its free daily allowance cannot support a dozen-call session; running out mid-session is worse than a slightly weaker question |
+| Stable over preview/experimental | Preview ids are retired on a schedule |
+| Bare alias over a pinned dated build | The alias survives the build being retired |
+
+`GEMINI_MODEL` overrides outright and is never second-guessed — that is the escape hatch for
+forcing Pro, or pinning a build. A failure to list is not fatal and is deliberately **not**
+cached: it falls back to a long-lived id and retries next time, so one blip during a cold start
+cannot pin an instance to an old model for as long as it lives. `npm run check:models` prints
+the listing, each candidate's score, and the resulting pick.
 
 The trade-off when choosing is recall rather than reasoning: the riddles lean on the model
 knowing a book past the blurb we hand it, and that is where a lite model is thinnest —

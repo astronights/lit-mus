@@ -141,12 +141,14 @@ Phase 2 is `enabled: true` on a source in `src/lib/seed-sources.ts` plus a re-ru
 > prize gets renamed on Wikidata. `npm run check:sources` reports a zero-row source in seconds;
 > these queries have not been run against the live endpoint yet.
 
-> **Pick `GEMINI_MODEL` from `npm run check:models`, not from a doc.** Model ids move — the 3.x
-> family uses a dotted scheme, preview ids get retired — and a stale id 404s on *every* call, so
-> it looks like generation is broken rather than like one setting being out of date. The script
-> lists what your key can actually use and flags the configured id if it isn't among them. The
-> built-in default is a stable id rather than the best one; a current Gemini 3 Flash is better
-> here, since these questions live on the model's recall.
+> **You do not pick the model.** Leave `GEMINI_MODEL` unset and the app asks your key what it
+> can use, then takes the best: newest family, Flash tier, stable over preview, plain alias over
+> a pinned date. It logs the choice on first use. There is no hard-coded id because ids move —
+> the 3.x family uses a dotted scheme, preview ids get retired — and a stale one 404s on *every*
+> call, which reads as generation being broken rather than one setting being out of date.
+> `npm run check:models` shows the listing, the score behind each candidate, and the pick. Set
+> `GEMINI_MODEL` only to override, e.g. to force a Pro model; an explicit value is never
+> second-guessed.
 
 The **1001 Books** source is file-driven (`data/1001-books.tsv`, `title<TAB>author`) because
 Wikidata does not model that list. A 42-title sample ships as `data/1001-books.sample.tsv` and
