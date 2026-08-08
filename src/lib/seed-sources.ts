@@ -122,20 +122,25 @@ SELECT DISTINCT ?book ?bookLabel ?authorLabel ?year WHERE {
     // is a decent proxy for "famous enough to be quizzed" -- a book with
     // articles in 25 languages is, by definition, one people around the world
     // have heard of, and it skews far less Anglophone than a curated list.
+    // `wikibase:sitelinks` is the count Wikidata already maintains on the item.
+    // The original counted `?sitelink schema:about ?book` and grouped by book,
+    // which meant materialising every sitelink triple for every literary work
+    // before it could discard 95% of them -- and it timed out at 60s, which is
+    // also WDQS's own ceiling, so no client-side patience would have fixed it.
+    // Same threshold, same meaning, no join and no aggregation.
     query: `
-SELECT ?book ?bookLabel ?authorLabel ?year (COUNT(DISTINCT ?sitelink) AS ?links) WHERE {
+SELECT ?book ?bookLabel ?authorLabel ?year ?links WHERE {
   ?book wdt:P31 wd:Q7725634 .
   ?book wdt:P50 ?author .
-  ?sitelink schema:about ?book .
+  ?book wikibase:sitelinks ?links .
+  FILTER(?links >= 25)
   OPTIONAL { ?book wdt:P577 ?published . BIND(YEAR(?published) AS ?year) }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }
-GROUP BY ?book ?bookLabel ?authorLabel ?year
-HAVING (COUNT(DISTINCT ?sitelink) >= 25)
 ORDER BY DESC(?links)`.trim(),
     notes:
-      "Heaviest query by far -- raise the HAVING threshold if the endpoint times out. " +
-      "Q7725634 is 'literary work'.",
+      "Q7725634 is 'literary work'. Lower the sitelink threshold to widen the net; " +
+      "it is the one number that decides how big the catalogue is.",
   },
   {
     id: "1001-books",
