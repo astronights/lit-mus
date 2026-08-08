@@ -10,6 +10,7 @@ import {
   toShortBlurb,
 } from "@/lib/sources/wikipedia";
 import { dedupe } from "@/lib/seed-rows";
+import { SEED_SOURCES } from "@/lib/seed-sources";
 
 const EXTRACT = `Black Beauty is an 1877 novel by the English author Anna Sewell.
 
@@ -205,4 +206,50 @@ describe("seed dedupe", () => {
 
     expect(rows).toHaveLength(2);
   });
+});
+
+/**
+ * The prize queries are the one part of seeding that cannot be unit-tested
+ * against the live endpoint from here, so the guards that matter are asserted
+ * on the query text itself.
+ *
+ * The bug being pinned: `P166` (award received) sits on the author as well as
+ * on the work for a literary prize, so an unguarded query files novelists as
+ * books. David Storey has "award received: Booker Prize" exactly as Saville
+ * does, and Drill went on to ask a title riddle whose answer was a person.
+ */
+describe("prize seed queries", () => {
+  const sparqlSources = SEED_SOURCES.filter((source) => source.kind === "sparql");
+
+  it("covers every SPARQL source, enabled or not", () => {
+    // Phase 2 sources are disabled, not absent. Flipping one on should not be
+    // how this bug comes back.
+    expect(sparqlSources.length).toBeGreaterThanOrEqual(8);
+  });
+
+  for (const source of sparqlSources) {
+    describe(source.id, () => {
+      it("cannot yield a person", () => {
+        // Two honest ways to guarantee it: say what ?book must be, or say what
+        // it must not be. `widely-translated` already pins P31 to literary
+        // work, which is the stronger of the two -- it should not be made to
+        // carry a redundant filter to satisfy this test.
+        const excludesHumans = source.query!.includes("FILTER NOT EXISTS { ?book wdt:P31 wd:Q5 }");
+        const pinnedToAWorkType = /\?book wdt:P31 wd:Q(?!5\b)\d+/.test(source.query!);
+
+        expect(excludesHumans || pinnedToAWorkType).toBe(true);
+      });
+
+      it("requires an author rather than leaving P50 optional", () => {
+        // The laureate-walk sources (?author wdt:P166 -> P800) establish
+        // authorship through ?author instead, so they are exempt from the
+        // direct P50 requirement -- but not from the Q5 filter above.
+        const walksFromLaureate = source.query!.includes("?author wdt:P800 ?book");
+        if (walksFromLaureate) return;
+
+        expect(source.query).toContain("?book wdt:P50 ?author .");
+        expect(source.query).not.toContain("OPTIONAL { ?book wdt:P50 ?author . }");
+      });
+    });
+  }
 });

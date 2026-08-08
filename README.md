@@ -57,6 +57,7 @@ DATABASE_URL="postgresql://postgres@localhost:5432/litmus" npm run dev
 | `npm run db:generate` / `db:push` / `db:studio` | Drizzle migrations |
 | `npm run check:sources` | dry-run every seed source and report row counts |
 | `npm run check:models` | list the Gemini models your key can use; flags a stale `GEMINI_MODEL` |
+| `npm run prune:non-books` | remove seeded rows that are people, not books (dry run; `-- --yes` to delete) |
 | `npm run seed` | bulk seed; idempotent, safe to re-run |
 | `npm run questions:reset` | delete generated questions so they are written again on next open |
 | `npm run hydration:reset` | throw away everything fetched and start the pull from scratch |

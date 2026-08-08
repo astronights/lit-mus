@@ -48,7 +48,14 @@ function prizeQuery(prizeLabel: string, { includeNominees = false } = {}): strin
 SELECT DISTINCT ?book ?bookLabel ?authorLabel ?year WHERE {
   ?prize rdfs:label "${prizeLabel}"@en .
   { ?book wdt:P166 ?prize . }${nominee}
-  OPTIONAL { ?book wdt:P50 ?author . }
+  # P166 sits on the winner, and for a literary prize the winner is the author
+  # as much as the work: David Storey carries "award received: Booker Prize"
+  # exactly as Saville does. Without these two guards the seed files novelists
+  # as books, and Drill then asks a title riddle whose answer is a person.
+  FILTER NOT EXISTS { ?book wdt:P31 wd:Q5 }
+  # Not OPTIONAL any more. Every prize-winning work has an author and no person
+  # has P50, so requiring it is a second, independent filter on the same bug.
+  ?book wdt:P50 ?author .
   OPTIONAL { ?book wdt:P577 ?published . BIND(YEAR(?published) AS ?year) }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }`.trim();
@@ -99,6 +106,7 @@ SELECT DISTINCT ?book ?bookLabel ?authorLabel ?year WHERE {
   ?prize rdfs:label "Nobel Prize in Literature"@en .
   ?author wdt:P166 ?prize .
   ?author wdt:P800 ?book .
+  FILTER NOT EXISTS { ?book wdt:P31 wd:Q5 }
   OPTIONAL { ?book wdt:P577 ?published . BIND(YEAR(?published) AS ?year) }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }`.trim(),
@@ -185,6 +193,7 @@ SELECT DISTINCT ?book ?bookLabel ?authorLabel ?year WHERE {
   ?prize rdfs:label "Miguel de Cervantes Prize"@en .
   ?author wdt:P166 ?prize .
   ?author wdt:P800 ?book .
+  FILTER NOT EXISTS { ?book wdt:P31 wd:Q5 }
   OPTIONAL { ?book wdt:P577 ?published . BIND(YEAR(?published) AS ?year) }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }`.trim(),

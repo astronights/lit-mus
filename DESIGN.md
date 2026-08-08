@@ -215,6 +215,26 @@ row.
 > wrong if mistyped; a label is readable in review, and a renamed prize shows up as a zero-row
 > source in `npm run check:sources` rather than as a category that quietly never appears.
 >
+> **Changed, after a novelist turned up as a book.** `?book wdt:P166 ?prize` looked like "works
+> that won this prize", but P166 is *award received* and it sits on the **author** as readily as
+> on the work: David Storey carries "award received: Booker Prize" exactly as *Saville* does. So
+> the seed filed people as books, and Drill wrote a title riddle whose answer was a person —
+> from the author's Wikipedia article, which is why it read as a plausible book question about a
+> rugby league player.
+>
+> Every SPARQL source now constrains `?book` to be a work, either negatively
+> (`FILTER NOT EXISTS { ?book wdt:P31 wd:Q5 }`) or positively — `widely-translated` already
+> pinned `P31` to literary work, which is stronger. The prize queries additionally require
+> `P50` (author) instead of leaving it `OPTIONAL`: no person has an author, so it is a second,
+> independent filter on the same bug. A unit test asserts the invariant over every source,
+> enabled or not, so flipping on a Phase 2 source cannot reintroduce it.
+>
+> Fixing the query does not clean the database — the seed job only upserts. `npm run
+> prune:non-books` asks Wikidata which stored QIDs are `Q5` and deletes them, cascading to
+> questions and drill state. It lists first; `-- --yes` commits. The test is Wikidata's own
+> rather than a guess from the strings: "title equals author" would miss rows whose author label
+> came back empty, and would delete a real book named after its author.
+
 > **These queries have not been run against the live endpoint** — the build environment blocks
 > Wikidata. `npm run check:sources` dry-runs every source and needs no database; run it before
 > the first real seed.
