@@ -61,6 +61,14 @@ async function main() {
 
   const affectedBooks = [...new Set(doomed.map((row) => row.bookId))];
 
+  // Counted before anything is deleted, and reported separately: on a full
+  // reset this is usually larger than `affectedBooks`, and the gap is the
+  // books that produced no questions at all.
+  const [marked] = await db
+    .select({ value: count() })
+    .from(books)
+    .where(isNotNull(books.questionsGeneratedAt));
+
   console.log(
     `${doomed.length} question(s) across ${affectedBooks.length} book(s)` +
       (promptVersion ? ` at prompt_version ${promptVersion}` : "") +
@@ -68,26 +76,40 @@ async function main() {
       (dryRun ? " [dry run — nothing deleted]" : ""),
   );
 
+  if (!promptVersion && bookId === undefined) {
+    console.log(`${marked?.value ?? 0} book(s) marked as generated will be re-opened.`);
+  }
+
   if (dryRun) return;
 
   if (doomed.length > 0) {
     await db.delete(quizQuestions).where(filter);
   }
 
-  // Clearing the timestamp is the part that actually re-opens the door:
-  // generation refuses to run while questions_generated_at is set.
-  if (affectedBooks.length > 0) {
-    await db
-      .update(books)
-      .set({ questionsGeneratedAt: null })
-      .where(inArray(books.id, affectedBooks));
-  } else if (!promptVersion && bookId === undefined) {
-    // No questions existed, but some books may still be marked as generated
-    // (a book whose article was too thin gets the timestamp and no rows).
+  /*
+   * Clearing the timestamp is the part that actually re-opens the door:
+   * generation refuses to run while questions_generated_at is set.
+   *
+   * A full reset clears every timestamp, not just those of books that had rows
+   * to delete. The two are not the same set, and the difference is invisible:
+   * a book gets the timestamp and no rows whenever its article was too thin, or
+   * whenever validation discarded everything the model returned. Those books are
+   * precisely the ones a full reset is meant to reach -- they are the failures --
+   * and keying the update off `affectedBooks` left them marked as done forever,
+   * so they silently never regenerated however many times this was run.
+   */
+  const fullReset = !promptVersion && bookId === undefined;
+
+  if (fullReset) {
     await db
       .update(books)
       .set({ questionsGeneratedAt: null })
       .where(isNotNull(books.questionsGeneratedAt));
+  } else if (affectedBooks.length > 0) {
+    await db
+      .update(books)
+      .set({ questionsGeneratedAt: null })
+      .where(inArray(books.id, affectedBooks));
   }
 
   const remaining = await db.select({ value: count() }).from(quizQuestions);
