@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bookDrillStates, books, drillResults, quizQuestions } from "@/db/schema";
 import { questionsForBooks, type BookQuestion } from "@/lib/books";
+import type { CardUnavailable } from "@/lib/drill-status";
 import { hydrateBook } from "@/lib/hydrate";
 import { generateQuestionsForBook } from "@/lib/questions/generate";
 import {
@@ -84,20 +85,18 @@ export async function pickSessionBooks(userId: string, size = 12): Promise<numbe
   return composeSession(candidates, { size });
 }
 
+export type DrillCardResult = { card: DrillCard } | { card: null; reason: CardUnavailable };
+
 /**
  * Fetch one card, doing whatever work the book still needs.
  *
- * This is where hydration and question generation happen now, which is why it
- * can take a few seconds: a book nobody has opened needs Open Library, Wikidata
- * and Wikipedia, then a Gemini call. Every later appearance is a DB read.
- *
- * Returns null when the book cannot produce a card. The caller drops it and
- * moves on; `questions_generated_at` is set either way, so it will not be
- * offered again.
+ * This is where hydration and question generation happen, which is why it can
+ * take a few seconds: a book nobody has opened needs Open Library, Wikidata and
+ * Wikipedia, then a Gemini call. Every later appearance is a DB read.
  */
-export async function loadDrillCard(userId: string, bookId: number): Promise<DrillCard | null> {
+export async function loadDrillCard(userId: string, bookId: number): Promise<DrillCardResult> {
   const book = await db.query.books.findFirst({ where: eq(books.id, bookId) });
-  if (!book) return null;
+  if (!book) return { card: null, reason: "not_found" };
 
   if (!book.hydratedAt) {
     try {
@@ -105,11 +104,18 @@ export async function loadDrillCard(userId: string, bookId: number): Promise<Dri
     } catch {
       // Every source failed -- a network blip rather than a thin article. Leave
       // the book a cache miss so a later session retries it.
-      return null;
+      return { card: null, reason: "unreachable" };
     }
   }
 
-  if (!book.questionsGeneratedAt) await generateQuestionsForBook(bookId);
+  if (!book.questionsGeneratedAt) {
+    const outcome = await generateQuestionsForBook(bookId);
+
+    if (outcome.status === "skipped" && outcome.reason === "not_configured") {
+      return { card: null, reason: "generation_unavailable" };
+    }
+    if (outcome.status === "throttled") return { card: null, reason: "throttled" };
+  }
 
   const [row] = await db
     .select({
@@ -127,18 +133,22 @@ export async function loadDrillCard(userId: string, bookId: number): Promise<Dri
     .where(eq(books.id, bookId))
     .limit(1);
 
-  if (!row) return null;
+  if (!row) return { card: null, reason: "not_found" };
 
   const questions = (await questionsForBooks([bookId])).get(bookId) ?? [];
-  if (questions.length === 0) return null;
+  // `questions_generated_at` is set either way, so a book whose article was too
+  // thin is not offered again.
+  if (questions.length === 0) return { card: null, reason: "no_questions" };
 
   return {
-    bookId: row.bookId,
-    title: row.title,
-    author: row.author,
-    coverUrl: row.coverUrl,
-    box: row.box ?? 1,
-    questions,
+    card: {
+      bookId: row.bookId,
+      title: row.title,
+      author: row.author,
+      coverUrl: row.coverUrl,
+      box: row.box ?? 1,
+      questions,
+    },
   };
 }
 

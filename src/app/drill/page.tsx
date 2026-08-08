@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { EmptyNote, ErrorNote, PageHeader, SignInPrompt } from "@/components/ui";
+import { ErrorNote, PageHeader, SignInPrompt } from "@/components/ui";
 import type { BookQuestion } from "@/lib/books";
 import type { DrillCard } from "@/lib/drill";
+import { explainEmptySession, type CardUnavailable } from "@/lib/drill-status";
 import { shelfColour } from "@/lib/shelf";
 import { useApi } from "@/lib/use-api";
 
@@ -43,6 +44,8 @@ export default function DrillPage() {
   const [revealed, setRevealed] = useState(false);
   const [summary, setSummary] = useState<CardOutcome | null>(null);
   const [completed, setCompleted] = useState(0);
+  // Why books were dropped, so the empty state can say something true.
+  const [dropped, setDropped] = useState<CardUnavailable[]>([]);
 
   useEffect(() => {
     if (data) setQueue(data.bookIds);
@@ -51,10 +54,13 @@ export default function DrillPage() {
   /*
    * Fetch the card at the head of the queue.
    *
-   * A 204 means the book cannot produce questions -- too thin an article -- so
-   * it is dropped and the next id is tried. That is invisible to the player:
-   * from their side it is simply the next book, which is why the loading state
-   * covers the whole hunt rather than each attempt.
+   * A book that cannot produce questions is dropped and the next id tried,
+   * which is invisible to the player -- from their side it is simply the next
+   * book, so the loading state covers the whole hunt rather than each attempt.
+   *
+   * `generation_unavailable` is the exception. It means the deployment has no
+   * Gemini key, so every remaining book would fail the same way; the queue is
+   * abandoned rather than hydrating eleven more books to prove it.
    */
   const wanted = queue[0] ?? null;
   const inFlight = useRef<number | null>(null);
@@ -70,16 +76,28 @@ export default function DrillPage() {
     fetch(`/api/drill/card/${wanted}`)
       .then(async (response) => {
         if (cancelled) return;
-        if (response.status === 204) {
-          setQueue((current) => current.filter((id) => id !== wanted));
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+
+        const result = (await response.json()) as
+          | { card: DrillCard }
+          | { card: null; reason: CardUnavailable };
+
+        if (result.card) {
+          setCard(result.card);
           return;
         }
-        if (!response.ok) throw new Error(`Request failed (${response.status})`);
-        const result = (await response.json()) as { card: DrillCard };
-        setCard(result.card);
+
+        setDropped((current) => [...current, result.reason]);
+        setQueue((current) =>
+          result.reason === "generation_unavailable"
+            ? []
+            : current.filter((id) => id !== wanted),
+        );
       })
       .catch(() => {
-        if (!cancelled) setQueue((current) => current.filter((id) => id !== wanted));
+        if (cancelled) return;
+        setDropped((current) => [...current, "unreachable" as const]);
+        setQueue((current) => current.filter((id) => id !== wanted));
       })
       .finally(() => {
         if (!cancelled) {
@@ -238,14 +256,31 @@ export default function DrillPage() {
             </p>
             <button
               type="button"
-              onClick={reload}
+              onClick={() => {
+                setDropped([]);
+                reload();
+              }}
               className="ink-button mt-4 bg-accent px-4 py-2 font-display text-lg text-accent-foreground"
             >
               Another session
             </button>
           </div>
         ) : (
-          <EmptyNote>Nothing to drill — seed some books first.</EmptyNote>
+          <div className="ink-card p-5 text-center">
+            <p className="text-sm">{explainEmptySession(dropped)}</p>
+            {dropped.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDropped([]);
+                  reload();
+                }}
+                className="ink-button mt-4 bg-surface px-4 py-2 font-display text-lg"
+              >
+                Try again
+              </button>
+            ) : null}
+          </div>
         )}
       </>
     );

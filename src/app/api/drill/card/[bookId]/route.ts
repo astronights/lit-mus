@@ -11,9 +11,14 @@ export const maxDuration = 60;
  * `GET /api/drill/card/:bookId` -- one drill card, fetching whatever the book
  * still needs first.
  *
- * A 204 means the book cannot produce a card (too thin an article, or every
- * source was unreachable). The client drops it and moves to the next id rather
- * than showing an error: from the player's side it is just the next book.
+ * `{ card: null, reason }` means the book could not produce a card. The client
+ * usually drops it and moves on -- from the player's side that is just the next
+ * book -- but the reason matters: `generation_unavailable` is a property of the
+ * deployment rather than the book, so the client stops instead of hydrating
+ * eleven more books to learn the same thing.
+ *
+ * This used to be a bare 204, which is why an unconfigured Gemini key showed up
+ * as "nothing to drill" on a shelf of two thousand books.
  */
 export async function GET(request: Request, context: { params: Promise<{ bookId: string }> }) {
   const user = await getCurrentUser();
@@ -31,8 +36,5 @@ export async function GET(request: Request, context: { params: Promise<{ bookId:
   const limiter = await rateLimit(`drill:card:${clientIp(request.headers)}`, 60, 60);
   if (!limiter.ok) return rateLimitResponse(limiter);
 
-  const card = await loadDrillCard(user.id, bookId);
-  if (!card) return new Response(null, { status: 204 });
-
-  return Response.json({ card });
+  return Response.json(await loadDrillCard(user.id, bookId));
 }
