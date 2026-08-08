@@ -8,6 +8,7 @@ import {
   generateJson,
   geminiModel,
   isGeminiConfigured,
+  quotaCooldown,
   withGeminiTurn,
 } from "@/lib/questions/gemini";
 import { loadPrompt, renderPrompt } from "@/lib/questions/prompt";
@@ -38,36 +39,24 @@ export type GenerationOutcome =
   | { status: "quota_exceeded"; retryAfterSeconds: number }
   | { status: "failed"; reason: string };
 
-/**
- * Published free-tier ceilings, per model.
+/*
+ * Defaults, deliberately not a table of per-model free-tier quotas.
  *
- * Here so that changing GEMINI_MODEL changes the budget with it: a limit tuned
- * for one model is worse than no limit on another -- too low wastes an
- * allowance we are paying attention to, too high just hands the 429 back to
- * Google. Google revises these, so the env vars below always win.
+ * A previous version kept one. It was the wrong shape: model ids move (the 3.x
+ * family switched to a dotted scheme mid-life), Google revises the numbers, and
+ * the free-tier cap is per *project* anyway -- it varies with region, account
+ * age and whether billing is attached. A hard-coded table is therefore wrong in
+ * a way nobody notices: too low silently wastes an allowance we are going out
+ * of our way to husband, too high just hands the 429 back to Google.
+ *
+ * So the local budget is a low, model-agnostic floor whose only job is to stop
+ * a runaway loop, and the real enforcement is Google's own 429 -- which now
+ * tells us how long to wait and which ceiling we hit (see quotaCooldown below).
+ * Set the env vars to the number AI Studio shows for your project;
+ * `npm run check:models` prints the ids that key can use.
  */
-const FREE_TIER: Record<string, { rpm: number; rpd: number }> = {
-  "gemini-2.5-pro": { rpm: 5, rpd: 100 },
-  "gemini-2.5-flash": { rpm: 10, rpd: 250 },
-  "gemini-2.5-flash-lite": { rpm: 15, rpd: 1_000 },
-  "gemini-2.0-flash": { rpm: 15, rpd: 200 },
-  "gemini-2.0-flash-lite": { rpm: 30, rpd: 200 },
-};
-
-/** Conservative guess for a model we have no published numbers for. */
-const UNKNOWN_MODEL = { rpm: 5, rpd: 100 };
-
-function freeTierCeiling(): { rpm: number; rpd: number } {
-  const model = geminiModel();
-  // Longest matching prefix, so a dated variant lands on its own base model:
-  // "gemini-2.5-flash-lite-preview-09-2025" starts with "gemini-2.5-flash"
-  // too, and matching that would give it less than half its real allowance.
-  const match = Object.keys(FREE_TIER)
-    .filter((name) => model.startsWith(name))
-    .sort((a, b) => b.length - a.length)[0];
-
-  return match ? FREE_TIER[match] : UNKNOWN_MODEL;
-}
+const DEFAULT_REQUESTS_PER_MINUTE = 5;
+const DEFAULT_REQUESTS_PER_DAY = 100;
 
 /**
  * Global ceilings, shared across every user and every function instance --
@@ -76,7 +65,7 @@ function freeTierCeiling(): { rpm: number; rpd: number } {
  */
 function requestsPerMinute(): number {
   const configured = Number(process.env.GEMINI_MAX_REQUESTS_PER_MINUTE);
-  return Number.isFinite(configured) && configured > 0 ? configured : freeTierCeiling().rpm;
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REQUESTS_PER_MINUTE;
 }
 
 /**
@@ -86,11 +75,9 @@ function requestsPerMinute(): number {
  */
 function requestsPerDay(): number {
   const configured = Number(process.env.GEMINI_MAX_REQUESTS_PER_DAY);
-  return Number.isFinite(configured) && configured > 0 ? configured : freeTierCeiling().rpd;
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REQUESTS_PER_DAY;
 }
 
-/** How long to stop asking after Gemini says the quota is gone. */
-const QUOTA_COOLDOWN_SECONDS = 15 * 60;
 const QUOTA_COOLDOWN_KEY = "gemini:quota-exhausted";
 
 export async function generateQuestionsForBook(bookId: number): Promise<GenerationOutcome> {
@@ -173,8 +160,9 @@ async function askGemini(bookId: number, input: GenerationInput): Promise<Genera
     // every subsequent card repeated the same doomed call, which is how a
     // single exhausted quota turned into twelve slow failures in a row.
     if (error instanceof GeminiError && error.status === 429) {
-      await markCooldown(QUOTA_COOLDOWN_KEY, QUOTA_COOLDOWN_SECONDS);
-      return { status: "quota_exceeded", retryAfterSeconds: QUOTA_COOLDOWN_SECONDS };
+      const cooldown = quotaCooldown(error);
+      await markCooldown(QUOTA_COOLDOWN_KEY, cooldown);
+      return { status: "quota_exceeded", retryAfterSeconds: cooldown };
     }
 
     // Deliberately leave `questions_generated_at` null: a transient Gemini

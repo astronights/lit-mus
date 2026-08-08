@@ -303,11 +303,20 @@ slow source degrades to "missing" rather than to a timed-out request.
 ## 5a. Question Generation (Gemini Flash)
 
 **Model**: Gemini Flash on the free tier — question generation is a small, well-constrained
-task that doesn't need a frontier model. The default is **`gemini-2.5-flash-lite`**, chosen for
-its daily allowance rather than its quality: one book is one call, a session is a dozen, and
-2.5 Flash's day is about two sessions. `GEMINI_MODEL` moves up a tier — see `.env.example` for
-the published limits per model, and note the trade-off, which is recall: the riddles lean on
-the model knowing a book past the blurb we hand it, and that is where a lite model is thinnest.
+task that doesn't need a frontier model. `GEMINI_MODEL` selects it; the built-in default
+(`gemini-2.5-flash-lite`) is chosen for being a **stable id**, not the best available, and a
+current Gemini 3 Flash is the better setting where the key offers one.
+
+Model ids are deliberately not curated in the repo. They move — the 3.x family switched to a
+dotted scheme, preview ids are retired on a schedule, dated suffixes come and go — and a stale
+id 404s on *every* call rather than degrading, which in the app reads as "generation is broken"
+rather than "one setting is out of date". `npm run check:models` asks Google what the
+configured key can use and flags `GEMINI_MODEL` if it isn't on the list. Pick from that, not
+from a table.
+
+The trade-off when choosing is recall rather than reasoning: the riddles lean on the model
+knowing a book past the blurb we hand it, and that is where a lite model is thinnest —
+especially for the contemporary translated fiction this app exists to cover.
 
 **Prompt design.** The model gets the title, author, character list, and the Wikipedia article
 text, and is asked for strict JSON only.
@@ -385,12 +394,21 @@ shared across users and function instances rather than per-request. Being thrott
 failure: `questions_generated_at` stays null and the next visit tries again. Backfilling the
 whole seed list would still need the slow batch script, not a single job.
 
-The per-minute and per-day ceilings **follow the model** (`FREE_TIER` in
-`src/lib/questions/generate.ts`) rather than being fixed numbers, because a budget tuned for
-one model is actively wrong on another: too low wastes an allowance we are going out of our way
-to husband, too high just hands the 429 back to Google. `GEMINI_MAX_REQUESTS_PER_MINUTE` and
-`GEMINI_MAX_REQUESTS_PER_DAY` override when set. The daily cap is the binding one — one book is
-one call, and a session is a dozen.
+**There is no table of per-model quotas, on purpose.** One was tried and removed within a day.
+The free-tier cap is per *project* — it varies with region, account age and whether billing is
+attached — and Google revises the published numbers besides, so a hard-coded table is wrong in
+a way nobody notices: too low silently wastes an allowance we are going out of our way to
+husband, too high just hands the 429 back to Google. What ships instead is a low, model-agnostic
+floor (5/min, 100/day) whose only job is to stop a runaway loop, overridden by
+`GEMINI_MAX_REQUESTS_PER_MINUTE` / `GEMINI_MAX_REQUESTS_PER_DAY` with the number AI Studio shows
+for the project. The daily cap is the binding one — one book is one call, a session is a dozen.
+
+**The real enforcement is Google's 429, and we now read it.** The response carries both
+`RetryInfo.retryDelay` and a `QuotaFailure` naming the ceiling that was hit, so the cooldown is
+as long as Google asks (clamped to 30s–1h) instead of a flat fifteen minutes. That flat number
+was wrong in both directions: a per-minute limit clears in under a minute, so fifteen minutes of
+refusing to generate was self-inflicted, while an exhausted *daily* allowance doesn't clear in
+fifteen minutes, so we went back and burned another call to be told so again.
 
 **Generation is one-shot.** Questions are written once, on first visit, and never regenerated
 in the app. Two consequences built around:
@@ -802,7 +820,9 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 10 | Prizes resolved by `rdfs:label`, not hard-coded QIDs | Readable in review; a rename shows up as a zero-row source instead of silence. |
 | 11 | `attempts`, `pending_review`, `wikipedia_title`, `source_url`, `slug` columns added | Each is load-bearing for a feature the draft described but didn't give storage for. |
 | 12 | Generation throttle is a global Redis token budget, not a queue service | Same guarantee, no extra infrastructure. |
-| 12a | Gemini calls are serialised, client *and* server; ceilings are derived from `GEMINI_MODEL` rather than fixed | A 429 costs the whole app a 15-minute cooldown, so two overlapping calls is a bad trade for a slightly faster buffer fill. Deriving the budget keeps it honest when the model changes. |
+| 12a | Gemini calls are serialised, client *and* server | Two overlapping calls is the ordinary way to trip a 429, and a 429 pauses the whole app — a bad trade for a slightly faster buffer fill. |
+| 12b | No per-model quota table; cooldown length is read off the 429 | The cap is per project (region, account age, billing), so any table is confidently wrong. Google's own error says how long to wait and which ceiling was hit; that beats a number we maintain by hand. |
+| 12c | Added `npm run check:models` | Model ids move faster than the repo, and a stale one 404s on every call. Same intent as `check:sources`: make the unverifiable part a one-command check. |
 | 13 | `node-postgres` fallback when `DATABASE_URL` is localhost | The whole app, seed job included, runs locally without a Neon account. |
 | 14 | CLI scripts load `.env.local` (and tolerate UTF-16) | `dotenv` only reads `.env`, so drizzle-kit and the seed job ignored the file the README documents. Windows writes UTF-16 by default, which failed with an error pointing at the wrong thing. |
 | 15 | Added `npm run check:sources` | The SPARQL is the one part that can't be unit-tested; this makes verifying it a single command. |

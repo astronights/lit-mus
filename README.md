@@ -56,6 +56,7 @@ DATABASE_URL="postgresql://postgres@localhost:5432/litmus" npm run dev
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:generate` / `db:push` / `db:studio` | Drizzle migrations |
 | `npm run check:sources` | dry-run every seed source and report row counts |
+| `npm run check:models` | list the Gemini models your key can use; flags a stale `GEMINI_MODEL` |
 | `npm run seed` | bulk seed; idempotent, safe to re-run |
 | `npm run questions:reset` | delete generated questions so they are written again on next open |
 | `npm run hydration:reset` | throw away everything fetched and start the pull from scratch |
@@ -138,6 +139,13 @@ Phase 2 is `enabled: true` on a source in `src/lib/seed-sources.ts` plus a re-ru
 > label (`?prize rdfs:label "Booker Prize"@en`), which is readable but breaks silently if a
 > prize gets renamed on Wikidata. `npm run check:sources` reports a zero-row source in seconds;
 > these queries have not been run against the live endpoint yet.
+
+> **Pick `GEMINI_MODEL` from `npm run check:models`, not from a doc.** Model ids move — the 3.x
+> family uses a dotted scheme, preview ids get retired — and a stale id 404s on *every* call, so
+> it looks like generation is broken rather than like one setting being out of date. The script
+> lists what your key can actually use and flags the configured id if it isn't among them. The
+> built-in default is a stable id rather than the best one; a current Gemini 3 Flash is better
+> here, since these questions live on the model's recall.
 
 The **1001 Books** source is file-driven (`data/1001-books.tsv`, `title<TAB>author`) because
 Wikidata does not model that list. A 42-title sample ships as `data/1001-books.sample.tsv` and
