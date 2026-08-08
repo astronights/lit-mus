@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.4
+version: 2026-08-07.5
 ---
 
 # Question generation prompt
@@ -42,14 +42,32 @@ A question whose answer is the book's title. Write it the way a quizmaster
 would: one or two sentences circling the work through its most *distinctive*
 fact, landing on "which work?".
 
-The best clue is usually **not** a plot summary. Reach first for:
+### The specificity test — apply this before anything else
 
-- what the title itself refers to, described without naming it
-- an effect the book had on the real world — a law changed, a practice
-  abolished, a word it put into the language
-- a formal or structural oddity — narrated by an animal, written in the second
-  person, one unbroken sentence
-- the circumstances it was written in
+**Could your clue describe a different book?** If yes, it has failed. Rewrite it.
+
+"A journey about leaving one's homeland" describes hundreds of novels. So does
+"a family saga spanning three generations", "a young woman comes of age in a
+changing society", and "an exploration of memory, loss and identity". These are
+*categories*, not clues. A player hearing one has been told nothing.
+
+Every riddle must contain **at least one hard particular that could not be
+moved to another book**. Reach for exactly one of these three wells, whichever
+is most striking for this book:
+
+1. **The plot's oddest concrete element** — not what the book is *about*, but
+   the strangest specific thing that happens or exists in it. Doors that open
+   onto other countries. A dead man given a fixed number of days. A ghost who
+   haunts a graveyard for one night. Objects, numbers, rules, impossible events.
+2. **Where the title comes from** — what it counts, quotes, or refers to,
+   described without using its words. Often the single best clue there is.
+3. **The book's real-world legacy** — a practice it helped abolish, a law it
+   changed, a phrase it put into the language, a ban or trial it caused, a
+   record it holds.
+
+A "hard particular" is a number, a date, a named real place or event, a physical
+object, an impossible rule, or a formal device. If your clue contains none of
+these, it is not finished.
 
 Rules:
 
@@ -60,9 +78,10 @@ Rules:
   black" is a giveaway, not a clue.
 - A date, nationality or genre is fair and helpful: "in which 1877 work…"
   narrows without giving anything away.
-- Prefer one clause of setup plus one striking, specific detail. Specificity is
-  what makes a question satisfying; vagueness makes it unguessable, which is a
-  different thing from difficult.
+- Vagueness is not difficulty. A clue nobody can get because it is unspecific
+  is a failure; a clue that is precise and still hard is the goal.
+- If you genuinely cannot find a hard particular for this book, return `null`
+  for the riddle rather than writing a generic one.
 
 ### 2. Two `detail` questions
 
