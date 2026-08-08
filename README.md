@@ -199,6 +199,22 @@ directly or re-run `npm run backfill:questions`.
 Vercel + Neon. Set the env vars from `.env.example` in the project settings. Auth routes are
 pinned to the Node runtime — argon2 is a native module and will not load on Edge.
 
+### Put the functions next to the database
+
+`vercel.json` pins functions to `sin1` (Singapore) to match a Neon project in `ap-southeast-1`.
+**If your Neon project is in a different region, change this** — the two must agree.
+
+Vercel defaults new projects to `iad1` (Virginia) wherever you are, and the mismatch is
+expensive rather than cosmetic. With functions in `iad1` and Neon in `ap-southeast-1`, every
+query crossed the Pacific and came back: opening an already-cached book took ~1.9s, of which
+almost none was the query. The database region is in your connection string host
+(`ep-xxx.ap-southeast-1.aws.neon.tech`), and the region a request actually ran in is the second
+field of the `X-Vercel-Id` response header (`sin1::iad1::…` means it entered in Singapore and
+executed in Virginia).
+
+Function-to-database latency is the one that multiplies, since a page makes several queries,
+so match the function region to Neon first and worry about your own distance second.
+
 Set `UPSTASH_REDIS_REST_URL` / `..._TOKEN` before the URL is public. Without them the rate
 limiter falls back to per-instance counters, which is fine locally and weak in production,
 where the login endpoint and the hydration endpoints are both worth protecting.
