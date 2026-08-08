@@ -37,7 +37,17 @@ export type DrillCard = {
  * ask about honestly. Without that second check a book with no possible
  * questions would be re-offered, re-fetched and re-skipped forever.
  */
-export async function pickSessionBooks(userId: string, size = 12): Promise<number[]> {
+export async function pickSessionBooks(
+  userId: string,
+  size = 12,
+  exclude: number[] = [],
+): Promise<number[]> {
+  // Paging: the client asks for a couple of ids at a time and passes back what
+  // it has already been given, so a session is not capped at one page and a
+  // book cannot appear twice in it.
+  const notAlreadyServed =
+    exclude.length > 0 ? sql`${books.id} not in ${exclude}` : sql`true`;
+
   const hasQuestionsOrUntried = sql`(
     ${books.questionsGeneratedAt} is null
     or exists (select 1 from ${quizQuestions} q where q.book_id = ${books.id})
@@ -57,6 +67,7 @@ export async function pickSessionBooks(userId: string, size = 12): Promise<numbe
           eq(bookDrillStates.userId, userId),
           eq(bookDrillStates.manuallyRetired, false),
           hasQuestionsOrUntried,
+          notAlreadyServed,
         ),
       )
       .orderBy(asc(bookDrillStates.dueAt))
@@ -71,6 +82,7 @@ export async function pickSessionBooks(userId: string, size = 12): Promise<numbe
             where s.book_id = ${books.id} and s.user_id = ${userId}
           )`,
           hasQuestionsOrUntried,
+          notAlreadyServed,
         ),
       )
       .orderBy(sql`random()`)
@@ -117,6 +129,13 @@ export async function loadDrillCard(userId: string, bookId: number): Promise<Dri
       return { card: null, reason: "generation_unavailable" };
     }
     if (outcome.status === "throttled") return { card: null, reason: "throttled" };
+    if (outcome.status === "quota_exceeded") {
+      return {
+        card: null,
+        reason: "quota_exceeded",
+        detail: `Retry in about ${Math.ceil(outcome.retryAfterSeconds / 60)} minutes.`,
+      };
+    }
 
     // Generation *threw* -- a bad model name, an auth failure, a prompt file
     // missing from the bundle. Reporting this as "no questions" blamed the

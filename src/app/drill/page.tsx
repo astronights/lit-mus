@@ -7,7 +7,17 @@ import type { BookQuestion } from "@/lib/books";
 import type { DrillCard } from "@/lib/drill";
 import { explainEmptySession, type CardUnavailable } from "@/lib/drill-status";
 import { shelfColour } from "@/lib/shelf";
-import { useApi } from "@/lib/use-api";
+
+/**
+ * Ids are fetched a couple at a time rather than a sessionful up front.
+ *
+ * They are cheap -- one query, no hydration -- but paging means a session is
+ * not capped at an arbitrary twelve, and the "n left" counter stops implying
+ * that twelve books were loaded when only ids were.
+ */
+const PAGE_SIZE = 2;
+/** Top up while one is still in hand, so the next card is never a cold start. */
+const REFILL_AT = 1;
 
 type Answer = { questionId: number; outcome: "got_it" | "missed" };
 
@@ -32,11 +42,12 @@ type CardOutcome = {
  * rather than hidden.
  */
 export default function DrillPage() {
-  const { data, error, loading, unauthorized, reload } = useApi<{ bookIds: number[] }>(
-    "/api/drill/session",
-  );
-
   const [queue, setQueue] = useState<number[]>([]);
+  const [served, setServed] = useState<number[]>([]);
+  const [exhausted, setExhausted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [card, setCard] = useState<DrillCard | null>(null);
   const [cardLoading, setCardLoading] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -48,9 +59,68 @@ export default function DrillPage() {
   const [dropped, setDropped] = useState<CardUnavailable[]>([]);
   const [dropDetail, setDropDetail] = useState<string | undefined>(undefined);
 
+  const loadingIds = useRef(false);
+
+  const loadMore = useCallback(async () => {
+    if (loadingIds.current) return;
+    loadingIds.current = true;
+
+    try {
+      const exclude = servedRef.current.join(",");
+      const response = await fetch(
+        `/api/drill/session?size=${PAGE_SIZE}${exclude ? `&exclude=${exclude}` : ""}`,
+      );
+
+      if (response.status === 401) {
+        setUnauthorized(true);
+        return;
+      }
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
+
+      const { bookIds } = (await response.json()) as { bookIds: number[] };
+      if (bookIds.length === 0) {
+        setExhausted(true);
+        return;
+      }
+
+      setQueue((current) => [...current, ...bookIds]);
+      setServed((current) => [...current, ...bookIds]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Something went wrong");
+    } finally {
+      loadingIds.current = false;
+      setLoading(false);
+    }
+  }, []);
+
+  // `served` in a ref as well, so loadMore stays stable and does not re-create
+  // itself on every page -- which would retrigger the effects that call it.
+  const servedRef = useRef<number[]>([]);
   useEffect(() => {
-    if (data) setQueue(data.bookIds);
-  }, [data]);
+    servedRef.current = served;
+  }, [served]);
+
+  useEffect(() => {
+    void loadMore();
+  }, [loadMore]);
+
+  // Top up while a card is still in hand.
+  useEffect(() => {
+    if (!exhausted && !loading && queue.length <= REFILL_AT) void loadMore();
+  }, [queue.length, exhausted, loading, loadMore]);
+
+  const restart = useCallback(() => {
+    setQueue([]);
+    setServed([]);
+    servedRef.current = [];
+    setExhausted(false);
+    setError(null);
+    setDropped([]);
+    setDropDetail(undefined);
+    setCompleted(0);
+    setLoading(true);
+    void loadMore();
+  }, [loadMore]);
 
   /*
    * Fetch the card at the head of the queue.
@@ -94,7 +164,9 @@ export default function DrillPage() {
         // so every remaining id would fail identically. Stop rather than
         // hydrate eleven more books to prove it.
         const fatal =
-          result.reason === "generation_unavailable" || result.reason === "generation_failed";
+          result.reason === "generation_unavailable" ||
+          result.reason === "generation_failed" ||
+          result.reason === "quota_exceeded";
         setQueue((current) => (fatal ? [] : current.filter((id) => id !== wanted)));
       })
       .catch(() => {
@@ -238,7 +310,9 @@ export default function DrillPage() {
     );
   }
 
-  if (cardLoading || (wanted !== null && !card)) {
+  // Also covers the gap where the queue has emptied and the next page of ids is
+  // still in flight -- without it the screen flashes "Session done" mid-session.
+  if (cardLoading || (wanted !== null && !card) || (!exhausted && queue.length === 0)) {
     return (
       <>
         <SessionProgress remaining={queue.length} completed={completed} />
@@ -259,11 +333,7 @@ export default function DrillPage() {
             </p>
             <button
               type="button"
-              onClick={() => {
-                setDropped([]);
-                setDropDetail(undefined);
-                reload();
-              }}
+              onClick={restart}
               className="ink-button mt-4 bg-accent px-4 py-2 font-display text-lg text-accent-foreground"
             >
               Another session
@@ -275,11 +345,7 @@ export default function DrillPage() {
             {dropped.length > 0 ? (
               <button
                 type="button"
-                onClick={() => {
-                  setDropped([]);
-                  setDropDetail(undefined);
-                  reload();
-                }}
+                onClick={restart}
                 className="ink-button mt-4 bg-surface px-4 py-2 font-display text-lg"
               >
                 Try again

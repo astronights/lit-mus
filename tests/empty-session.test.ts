@@ -37,6 +37,18 @@ describe("explainEmptySession", () => {
     expect(message).not.toContain("Wikipedia article");
   });
 
+  it("names the quota and when it comes back, without blaming the books", () => {
+    const message = explainEmptySession(
+      ["quota_exceeded"],
+      "Retry in about 15 minutes.",
+    );
+
+    expect(message).toContain("quota");
+    expect(message).toContain("midnight US Pacific");
+    expect(message).toContain("15 minutes");
+    expect(message).not.toContain("Wikipedia article");
+  });
+
   it("reports throttling as temporary", () => {
     expect(explainEmptySession(["no_questions", "throttled"]).toLowerCase()).toContain("minute");
   });

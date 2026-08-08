@@ -92,6 +92,41 @@ export async function rateLimit(
   }
 }
 
+/**
+ * Mark a cooldown: "stop doing this until the TTL expires".
+ *
+ * Distinct from `rateLimit`, which counts. This is for the case where an
+ * upstream has told us to stop -- a 429 from Gemini means the quota is gone,
+ * and continuing to ask burns attempts and makes every user wait for a call
+ * that cannot succeed.
+ */
+export async function markCooldown(key: string, seconds: number): Promise<void> {
+  if (!redis) {
+    memory.set(`cooldown:${key}`, { count: 1, expiresAt: Date.now() + seconds * 1000 });
+    return;
+  }
+  try {
+    await redis.set(`cooldown:${key}`, "1", { ex: seconds });
+  } catch (error) {
+    console.error("[rate-limit] could not set cooldown", error);
+  }
+}
+
+/** Seconds left on a cooldown, or 0 if it is clear. */
+export async function cooldownRemaining(key: string): Promise<number> {
+  if (!redis) {
+    const entry = memory.get(`cooldown:${key}`);
+    if (!entry) return 0;
+    return Math.max(0, Math.ceil((entry.expiresAt - Date.now()) / 1000));
+  }
+  try {
+    const ttl = await redis.ttl(`cooldown:${key}`);
+    return ttl > 0 ? ttl : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Best-effort client IP from the proxy headers Vercel sets. */
 export function clientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");

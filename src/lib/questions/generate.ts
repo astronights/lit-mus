@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { books, plotBlurbs, quizQuestions } from "@/db/schema";
-import { rateLimit } from "@/lib/rate-limit";
+import { cooldownRemaining, markCooldown, rateLimit } from "@/lib/rate-limit";
 import { GeminiError, generateJson, geminiModel, isGeminiConfigured } from "@/lib/questions/gemini";
 import { loadPrompt, renderPrompt } from "@/lib/questions/prompt";
 import {
@@ -29,13 +29,32 @@ export type GenerationOutcome =
   | { status: "generated"; count: number }
   | { status: "skipped"; reason: "already_generated" | "not_hydrated" | "no_plot" | "not_configured" }
   | { status: "throttled"; retryAfterSeconds: number }
+  | { status: "quota_exceeded"; retryAfterSeconds: number }
   | { status: "failed"; reason: string };
 
-/** Global ceiling, shared across every user and every function instance. */
+/**
+ * Global ceilings, shared across every user and every function instance --
+ * provided Upstash is configured. Without it the limiter counts per function
+ * instance, which on Vercel is close to no limit at all.
+ */
 function requestsPerMinute(): number {
   const configured = Number(process.env.GEMINI_MAX_REQUESTS_PER_MINUTE);
   return Number.isFinite(configured) && configured > 0 ? configured : 10;
 }
+
+/**
+ * The daily cap the free tier actually enforces, and the one we had no guard
+ * for at all. A per-minute limit does nothing to stop a session of twelve
+ * cards, repeated a few times, walking straight through a day's allowance.
+ */
+function requestsPerDay(): number {
+  const configured = Number(process.env.GEMINI_MAX_REQUESTS_PER_DAY);
+  return Number.isFinite(configured) && configured > 0 ? configured : 150;
+}
+
+/** How long to stop asking after Gemini says the quota is gone. */
+const QUOTA_COOLDOWN_SECONDS = 15 * 60;
+const QUOTA_COOLDOWN_KEY = "gemini:quota-exhausted";
 
 export async function generateQuestionsForBook(bookId: number): Promise<GenerationOutcome> {
   if (!isGeminiConfigured()) return { status: "skipped", reason: "not_configured" };
@@ -53,10 +72,23 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
     return { status: "skipped", reason: "no_plot" };
   }
 
-  // The queue (Section 5d): a couple of people browsing new books at once can
-  // outrun the free tier's per-minute cap, so the throttle is global rather
-  // than per user. Being throttled is not an error -- we leave
-  // `questions_generated_at` null and the next visit tries again.
+  /*
+   * Three gates before spending a call, in cost order.
+   *
+   * The cooldown comes first: once Gemini has returned 429 the quota is gone,
+   * and every further request burns a round trip, makes the player wait, and
+   * tells us nothing new.
+   */
+  const cooling = await cooldownRemaining(QUOTA_COOLDOWN_KEY);
+  if (cooling > 0) return { status: "quota_exceeded", retryAfterSeconds: cooling };
+
+  const daily = await rateLimit("gemini:daily", requestsPerDay(), 24 * 60 * 60);
+  if (!daily.ok) {
+    return { status: "quota_exceeded", retryAfterSeconds: daily.resetSeconds };
+  }
+
+  // Being throttled is not an error -- `questions_generated_at` stays null and
+  // the next visit tries again.
   const budget = await rateLimit("gemini:generate", requestsPerMinute(), 60);
   if (!budget.ok) {
     return { status: "throttled", retryAfterSeconds: budget.resetSeconds };
@@ -82,6 +114,15 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error(`[questions] generation failed for book ${bookId}: ${reason}`);
+
+    // A 429 is the quota, not this book. Stop asking for a while: without this
+    // every subsequent card repeated the same doomed call, which is how a
+    // single exhausted quota turned into twelve slow failures in a row.
+    if (error instanceof GeminiError && error.status === 429) {
+      await markCooldown(QUOTA_COOLDOWN_KEY, QUOTA_COOLDOWN_SECONDS);
+      return { status: "quota_exceeded", retryAfterSeconds: QUOTA_COOLDOWN_SECONDS };
+    }
+
     // Deliberately leave `questions_generated_at` null: a transient Gemini
     // failure should not permanently cost the book its questions.
     return { status: "failed", reason };

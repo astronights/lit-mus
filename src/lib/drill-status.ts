@@ -18,6 +18,7 @@ export type CardUnavailable =
   | "no_questions"
   | "generation_unavailable"
   | "generation_failed"
+  | "quota_exceeded"
   | "throttled";
 
 /**
@@ -38,6 +39,13 @@ export function explainEmptySession(reasons: CardUnavailable[], detail?: string)
     // Distinguished from `no_questions` deliberately: this is generation
     // throwing, which is a bug or a misconfiguration, not a thin article.
     return `Question generation failed${detail ? `: ${detail}` : "."} This is a fault on the app's side, not the books.`;
+  }
+  if (reasons.includes("quota_exceeded")) {
+    return (
+      "Gemini's free-tier quota is used up, so no new questions can be written right now. " +
+      "The per-day allowance resets at midnight US Pacific; books already drilled still work. " +
+      (detail ?? "")
+    ).trim();
   }
   if (reasons.includes("throttled")) {
     return "Hit the question-generation rate limit. Give it a minute and try again.";

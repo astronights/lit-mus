@@ -13,15 +13,24 @@ export const runtime = "nodejs";
  *
  * It also keeps the titles off the client until the riddle has been played --
  * shipping the whole queue would put every answer in the network tab.
+ *
+ * Paged: the client asks for a couple at a time and passes back what it has
+ * already had via `exclude`, so a session runs as long as you keep going
+ * instead of ending at an arbitrary twelve.
  */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const size = Math.min(
-    Math.max(Number(new URL(request.url).searchParams.get("size")) || 12, 1),
-    30,
-  );
+  const params = new URL(request.url).searchParams;
+  const size = Math.min(Math.max(Number(params.get("size")) || 12, 1), 30);
 
-  return Response.json({ bookIds: await pickSessionBooks(user.id, size) });
+  const exclude = (params.get("exclude") ?? "")
+    .split(",")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0)
+    // Bounded so a crafted request cannot build an enormous NOT IN clause.
+    .slice(0, 500);
+
+  return Response.json({ bookIds: await pickSessionBooks(user.id, size, exclude) });
 }

@@ -2,7 +2,16 @@ import { fetchJson } from "@/lib/http";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
-export class GeminiError extends Error {}
+export class GeminiError extends Error {
+  /** HTTP status, when the failure came from a response rather than a timeout. */
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "GeminiError";
+  }
+}
 
 type GenerateContentResponse = {
   candidates?: Array<{
@@ -61,6 +70,7 @@ export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<
       // off". GEMINI_MODEL overrides it.
       throw new GeminiError(
         `Gemini returned ${response.status} for model "${geminiModel()}": ${body.slice(0, 300)}`,
+        response.status,
       );
     }
 
