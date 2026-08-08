@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -22,7 +22,27 @@ export function loadPrompt(): LoadedPrompt {
   // exactly the loop you want to be fast while tuning.
   if (cached && process.env.NODE_ENV === "production") return cached;
 
-  const file = path.join(process.cwd(), "prompts", "question-generation.md");
+  /*
+   * Several candidates, because `process.cwd()` is not the repo root in every
+   * serverless layout. If none exist the error names all of them -- a missing
+   * prompt is a deployment problem and the message should say so rather than
+   * bubbling up as an unexplained generation failure.
+   */
+  const candidates = [
+    path.join(process.cwd(), "prompts", "question-generation.md"),
+    path.join(process.cwd(), "..", "prompts", "question-generation.md"),
+    path.join(process.cwd(), "apps", "web", "prompts", "question-generation.md"),
+  ];
+
+  const file = candidates.find((candidate) => existsSync(candidate));
+  if (!file) {
+    throw new Error(
+      `Prompt file not found. Looked in:\n  ${candidates.join("\n  ")}\n` +
+        "On Vercel this means prompts/ was not traced into the function bundle " +
+        "(see outputFileTracingIncludes in next.config.ts).",
+    );
+  }
+
   const raw = readFileSync(file, "utf8");
 
   const frontMatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(raw);

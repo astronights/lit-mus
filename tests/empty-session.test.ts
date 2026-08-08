@@ -24,6 +24,19 @@ describe("explainEmptySession", () => {
     );
   });
 
+  it("separates a generation crash from a thin article, and shows the cause", () => {
+    // Twelve books failing in a row is never twelve thin articles; it is one
+    // fault reported twelve times, and the message has to say which.
+    const message = explainEmptySession(
+      ["generation_failed", "generation_failed"],
+      "Prompt file not found",
+    );
+
+    expect(message).toContain("Prompt file not found");
+    expect(message).toContain("app's side");
+    expect(message).not.toContain("Wikipedia article");
+  });
+
   it("reports throttling as temporary", () => {
     expect(explainEmptySession(["no_questions", "throttled"]).toLowerCase()).toContain("minute");
   });

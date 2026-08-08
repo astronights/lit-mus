@@ -17,6 +17,7 @@ export type CardUnavailable =
   | "unreachable"
   | "no_questions"
   | "generation_unavailable"
+  | "generation_failed"
   | "throttled";
 
 /**
@@ -26,12 +27,17 @@ export type CardUnavailable =
  * which on a shelf of two thousand books sent you looking in exactly the wrong
  * place.
  */
-export function explainEmptySession(reasons: CardUnavailable[]): string {
+export function explainEmptySession(reasons: CardUnavailable[], detail?: string): string {
   if (reasons.length === 0) {
     return "Nothing to drill yet — seed some books with `npm run seed`.";
   }
   if (reasons.includes("generation_unavailable")) {
     return "Questions can't be generated: GEMINI_API_KEY isn't set on this deployment.";
+  }
+  if (reasons.includes("generation_failed")) {
+    // Distinguished from `no_questions` deliberately: this is generation
+    // throwing, which is a bug or a misconfiguration, not a thin article.
+    return `Question generation failed${detail ? `: ${detail}` : "."} This is a fault on the app's side, not the books.`;
   }
   if (reasons.includes("throttled")) {
     return "Hit the question-generation rate limit. Give it a minute and try again.";

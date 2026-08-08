@@ -46,6 +46,7 @@ export default function DrillPage() {
   const [completed, setCompleted] = useState(0);
   // Why books were dropped, so the empty state can say something true.
   const [dropped, setDropped] = useState<CardUnavailable[]>([]);
+  const [dropDetail, setDropDetail] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (data) setQueue(data.bookIds);
@@ -80,7 +81,7 @@ export default function DrillPage() {
 
         const result = (await response.json()) as
           | { card: DrillCard }
-          | { card: null; reason: CardUnavailable };
+          | { card: null; reason: CardUnavailable; detail?: string };
 
         if (result.card) {
           setCard(result.card);
@@ -88,11 +89,13 @@ export default function DrillPage() {
         }
 
         setDropped((current) => [...current, result.reason]);
-        setQueue((current) =>
-          result.reason === "generation_unavailable"
-            ? []
-            : current.filter((id) => id !== wanted),
-        );
+        if (result.detail) setDropDetail((current) => current ?? result.detail);
+        // Both of these are properties of the deployment rather than the book,
+        // so every remaining id would fail identically. Stop rather than
+        // hydrate eleven more books to prove it.
+        const fatal =
+          result.reason === "generation_unavailable" || result.reason === "generation_failed";
+        setQueue((current) => (fatal ? [] : current.filter((id) => id !== wanted)));
       })
       .catch(() => {
         if (cancelled) return;
@@ -258,6 +261,7 @@ export default function DrillPage() {
               type="button"
               onClick={() => {
                 setDropped([]);
+                setDropDetail(undefined);
                 reload();
               }}
               className="ink-button mt-4 bg-accent px-4 py-2 font-display text-lg text-accent-foreground"
@@ -267,12 +271,13 @@ export default function DrillPage() {
           </div>
         ) : (
           <div className="ink-card p-5 text-center">
-            <p className="text-sm">{explainEmptySession(dropped)}</p>
+            <p className="text-sm">{explainEmptySession(dropped, dropDetail)}</p>
             {dropped.length > 0 ? (
               <button
                 type="button"
                 onClick={() => {
                   setDropped([]);
+                  setDropDetail(undefined);
                   reload();
                 }}
                 className="ink-button mt-4 bg-surface px-4 py-2 font-display text-lg"

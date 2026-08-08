@@ -55,7 +55,13 @@ export async function generateJson(prompt: string, timeoutMs = 20_000): Promise<
 
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      throw new GeminiError(`Gemini returned ${response.status}: ${body.slice(0, 300)}`);
+      // The model name is in the message because it is the likeliest thing to
+      // be wrong: an unavailable or renamed model 404s on every single call,
+      // which looks like "generation is broken" rather than "one setting is
+      // off". GEMINI_MODEL overrides it.
+      throw new GeminiError(
+        `Gemini returned ${response.status} for model "${geminiModel()}": ${body.slice(0, 300)}`,
+      );
     }
 
     const data = (await response.json()) as GenerateContentResponse;

@@ -12,10 +12,20 @@ const nextConfig: NextConfig = {
   // and Next's tracer cannot follow a dynamic readFileSync path -- without
   // this they are missing from the deployed bundle.
   outputFileTracingIncludes: {
-    // Question generation moved from the book route into Drill; the prompt is
-    // read from disk at runtime, so it has to be traced into *that* function or
-    // generation fails on Vercel with a missing file.
-    "/api/drill/card/[bookId]": ["./prompts/**"],
+    /*
+     * The prompt goes into *every* function, not the one that happens to
+     * generate today.
+     *
+     * It is read from disk at runtime and Next cannot trace a dynamic
+     * readFileSync path, so this list is the only thing putting it in the
+     * bundle. Naming a single route meant that moving generation from the book
+     * route to the drill route silently left the file behind: readFileSync
+     * threw on every book, and the failure surfaced as "no questions" -- i.e.
+     * as a claim about Wikipedia rather than about the deployment.
+     *
+     * A few KB in each function is a trivial price for that never recurring.
+     */
+    "/**": ["./prompts/**"],
     "/api/cron/seed": ["./data/**"],
   },
 };

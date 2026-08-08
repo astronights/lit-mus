@@ -85,7 +85,9 @@ export async function pickSessionBooks(userId: string, size = 12): Promise<numbe
   return composeSession(candidates, { size });
 }
 
-export type DrillCardResult = { card: DrillCard } | { card: null; reason: CardUnavailable };
+export type DrillCardResult =
+  | { card: DrillCard }
+  | { card: null; reason: CardUnavailable; detail?: string };
 
 /**
  * Fetch one card, doing whatever work the book still needs.
@@ -115,6 +117,14 @@ export async function loadDrillCard(userId: string, bookId: number): Promise<Dri
       return { card: null, reason: "generation_unavailable" };
     }
     if (outcome.status === "throttled") return { card: null, reason: "throttled" };
+
+    // Generation *threw* -- a bad model name, an auth failure, a prompt file
+    // missing from the bundle. Reporting this as "no questions" blamed the
+    // book's Wikipedia article for a fault on our side, which is how twelve
+    // failures in a row looked like twelve thin articles.
+    if (outcome.status === "failed") {
+      return { card: null, reason: "generation_failed", detail: outcome.reason };
+    }
   }
 
   const [row] = await db
