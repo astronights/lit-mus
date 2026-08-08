@@ -97,25 +97,35 @@ Rules:
 
 ### 2. Two `detail` questions
 
-Each answer must be a proper noun that **exists outside the book** — a real
-place, a historical event or period, a real person, an institution, a practice,
-an object with a history of its own.
+Each answer must be a proper noun that **means something outside this book**.
 
-This is the rule that matters most, and the easiest to get wrong:
+The test is recognition, not reality: would a well-read person who has *not*
+read this book have heard of it?
 
-- ✅ Colombo, Biafra, the Nigerian Civil War, the bearing rein, the Bastille,
-  the Cultural Revolution, Cetshwayo
-- ❌ Ginger, Jerry Barker, Squire Gordon, Macondo, Hogwarts, Middle-earth
+- ✅ **Real anything** — Colombo, Biafra, the Nigerian Civil War, the bearing
+  rein, the Bastille, the Cultural Revolution, Cetshwayo, Villa Diodati.
+  Places, events, people, institutions, practices, objects with a history.
+- ✅ **Invented but famous** — Macondo, Middle-earth, Big Brother, Room 101,
+  Hogwarts. These exist only in fiction, but they have escaped their covers
+  and are worth knowing.
+- ❌ **Invented and obscure** — Ginger, Jerry Barker, Squire Gordon. Memorable
+  if you have read the book, meaningless if you have not, and exactly what a
+  lazy question reaches for.
 
-The second list is invented. However memorable those names are, knowing them
-teaches you nothing outside the covers of one book, and they are exactly what a
-lazy question reaches for. **A character's name is never an acceptable
-answer** — the character list you are given is context for the question, not a
-source of answers.
+Being a character does not disqualify a name — only being unknown outside the
+book does. Real people who appear as characters are always fair game: Napoleon,
+Thomas Cromwell, Willie Lincoln. The character list you are given is context,
+not a shortlist of answers.
 
 Ask about something the book is genuinely associated with — the war it is set
-during, the city it made famous, the practice it helped end. The two questions
-must be about different things.
+during, the city it made famous, the practice it helped end.
+
+The two questions must differ **in kind, not just in wording**: if one asks
+about a place, the other should ask about a person, an event or an object. Two
+angles on the same war is one question asked twice.
+
+**Two is the target, not a quota.** One good detail question beats two where the
+second is padding.
 
 **Never ask about anything the riddle already stated.** The card plays the
 riddle first and the details straight afterwards, so a fact named in the riddle
