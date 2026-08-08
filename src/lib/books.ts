@@ -25,10 +25,15 @@ export type BookDetail = BookSummary & {
   categories: Array<{ id: number; slug: string; name: string }>;
   blurb: { shortBlurb: string; sourceUrl: string | null } | null;
   characters: string[];
-  questions: BookQuestion[];
-  /** Null while the background generation job has not finished. */
-  questionsGeneratedAt: Date | null;
 };
+
+/*
+ * Note what is absent: questions.
+ *
+ * They belong to Drill. Reading them on the book card spoils the riddle, and
+ * shipping them here would put every answer in the network tab of a screen
+ * that never displays them.
+ */
 
 const summaryColumns = {
   id: books.id,
@@ -117,7 +122,7 @@ export async function getBookDetail(
   const book = known ?? (await db.query.books.findFirst({ where: eq(books.id, id) }));
   if (!book) return null;
 
-  const [categoryRows, blurb, questionRows] = await Promise.all([
+  const [categoryRows, blurb] = await Promise.all([
     db
       .select({ id: categories.id, slug: categories.slug, name: categories.name })
       .from(categories)
@@ -125,18 +130,6 @@ export async function getBookDetail(
       .where(eq(bookCategories.bookId, id))
       .orderBy(asc(categories.name)),
     db.query.plotBlurbs.findFirst({ where: eq(plotBlurbs.bookId, id) }),
-    db
-      .select({
-        id: quizQuestions.id,
-        type: quizQuestions.type,
-        questionText: quizQuestions.questionText,
-        answer: quizQuestions.answer,
-        reported: quizQuestions.reported,
-      })
-      .from(quizQuestions)
-      .where(eq(quizQuestions.bookId, id))
-      // Riddle first: it is the question the card is built around.
-      .orderBy(desc(eq(quizQuestions.type, "title_riddle")), asc(quizQuestions.id)),
   ]);
 
   return {
@@ -144,8 +137,6 @@ export async function getBookDetail(
     categories: categoryRows,
     blurb: blurb ? { shortBlurb: blurb.shortBlurb, sourceUrl: blurb.sourceUrl } : null,
     characters: book.characters ?? [],
-    questions: questionRows,
-    questionsGeneratedAt: book.questionsGeneratedAt,
   };
 }
 
@@ -177,6 +168,14 @@ export async function questionsForBooks(
   return result;
 }
 
+/**
+ * Plain category list.
+ *
+ * It used to aggregate "opened / total" per category for a coverage readout on
+ * Browse and Progress. Both are gone -- how many books you have opened is not a
+ * goal, and drilling no longer depends on it -- so the two joins and the
+ * GROUP BY went with them.
+ */
 export async function listCategories() {
   return db
     .select({
@@ -184,12 +183,7 @@ export async function listCategories() {
       slug: categories.slug,
       name: categories.name,
       type: categories.type,
-      total: sql<number>`count(${bookCategories.bookId})::int`,
-      hydrated: sql<number>`count(${books.hydratedAt})::int`,
     })
     .from(categories)
-    .leftJoin(bookCategories, eq(bookCategories.categoryId, categories.id))
-    .leftJoin(books, eq(books.id, bookCategories.bookId))
-    .groupBy(categories.id)
     .orderBy(asc(categories.name));
 }

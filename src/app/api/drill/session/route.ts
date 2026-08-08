@@ -1,15 +1,27 @@
-import { buildSession } from "@/lib/drill";
+import { pickSessionBooks } from "@/lib/drill";
 import { getCurrentUser, unauthorized } from "@/lib/session";
 
 export const runtime = "nodejs";
 
-/** `GET /api/drill/session` -- a composed session queue. Requires sign-in. */
+/**
+ * `GET /api/drill/session` -- the book ids for a session, in order.
+ *
+ * Ids only, deliberately. The card itself is fetched one at a time from
+ * `/api/drill/card/:bookId`, because a book that has never been opened needs
+ * Wikipedia and Gemini before it can be asked about, and doing that for a
+ * whole session up front would mean a minute of staring at a spinner.
+ *
+ * It also keeps the titles off the client until the riddle has been played --
+ * shipping the whole queue would put every answer in the network tab.
+ */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const size = Math.min(Math.max(Number(new URL(request.url).searchParams.get("size")) || 12, 1), 30);
-  const cards = await buildSession(user.id, size);
+  const size = Math.min(
+    Math.max(Number(new URL(request.url).searchParams.get("size")) || 12, 1),
+    30,
+  );
 
-  return Response.json({ cards });
+  return Response.json({ bookIds: await pickSessionBooks(user.id, size) });
 }

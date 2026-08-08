@@ -418,11 +418,10 @@ Missing the riddle still reveals the answer and continues into the details. The 
 learning, not scoring — aborting the card on a miss would deny you the exact repetition you
 need most.
 
-**Skip is neutral, not a miss.** No `DrillResult` is written and the card returns later in the
-session. Skipping the *riddle* parks the whole card (being shown the title would spoil the
-second pass); skipping a *detail* question just moves on, and the card can no longer be a clean
-pass — 2 of 3 answered correctly is not 3 of 3, and promoting on it would be promoting on
-incomplete evidence.
+**Skip drops the whole book, from any question.** No `DrillResult` is written, no box change,
+no due date change: skip means "not this one, not now", which is a different thing from getting
+it wrong and must not touch scheduling. It used to park the card and re-serve it later in the
+same session, which just meant seeing a book you had deliberately passed on twice.
 
 ### Scheduling — why not "three times then hide forever"
 
@@ -451,9 +450,19 @@ available in December.
 five minutes later in the same sitting, which would just be re-reading.
 
 **Session composition** — due books first (oldest first: a book overdue by a month needs the
-pass more than one that came due this morning), then a few never-drilled books to keep coverage
-expanding, then a low-box-weighted top-up from not-yet-due books. The candidate pool is capped
-at 500 rather than loading the whole library.
+pass more than one that came due this morning), then a few never-drilled books, then a
+low-box-weighted top-up from not-yet-due books, then more never-drilled books to fill.
+
+> **Changed: Drill no longer depends on what you have opened in Browse.** It used to require a
+> hydrated book with questions already generated, which made the study loop a hostage to
+> browsing habits — you had to go and open books before you could drill them. Any seeded book
+> is now eligible, and the content is fetched when its card comes up: `/api/drill/session`
+> returns ids, `/api/drill/card/:bookId` does the hydration and the Gemini call for one book.
+> A first-time card genuinely takes a few seconds, so the wait is shown rather than hidden.
+>
+> Two things exclude a book: you retired it by hand, or generation already ran and produced
+> nothing. Without the second check, a book whose article is too thin to ask about would be
+> re-offered, re-fetched and re-skipped forever.
 
 A manual **"I've got this, stop showing me"** action is the one permanent retirement — chosen,
 not inferred from three lucky guesses.

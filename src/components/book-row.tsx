@@ -8,7 +8,10 @@ import { shelfColour } from "@/lib/shelf";
  *
  * Each row is tinted like a book spine, so a category list reads as a shelf.
  * The cover art sits on top of the tint rather than replacing it -- covers are
- * the one piece of real photography here and they stay exactly as they were.
+ * the one piece of real photography here.
+ *
+ * There is deliberately no "already opened" marker: coverage is not a goal of
+ * this app, and Drill no longer depends on what you have opened.
  */
 export function BookRow({ book }: { book: BookSummary }) {
   return (
@@ -25,20 +28,6 @@ export function BookRow({ book }: { book: BookSummary }) {
           {book.firstPublishYear ? ` · ${book.firstPublishYear}` : ""}
         </span>
       </span>
-      {/*
-        Coverage marker (Section 5b): the same book shows up in several category
-        lists, and a mark for "already opened" is what makes a list readable at
-        a glance. An ink tick rather than a dot, to sit with the drawn style.
-      */}
-      {book.hydrated ? (
-        <span
-          className="shrink-0 text-lg leading-none"
-          title="Already opened"
-          aria-label="Already opened"
-        >
-          ✓
-        </span>
-      ) : null}
     </Link>
   );
 }

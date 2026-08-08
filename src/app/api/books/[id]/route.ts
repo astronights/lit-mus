@@ -22,13 +22,21 @@ export const maxDuration = 30;
  * lands.
  */
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const started = Date.now();
+  const marks: string[] = [];
+  const mark = (name: string, from: number) => marks.push(`${name};dur=${Date.now() - from}`);
+
   const { id: rawId } = await context.params;
   const id = Number(rawId);
   if (!Number.isInteger(id) || id <= 0) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  const lookupStart = Date.now();
   let book = await db.query.books.findFirst({ where: eq(books.id, id) });
+  // First query of a request also pays for waking a suspended Neon compute, so
+  // this number is the one to look at when the page feels slow.
+  mark("db-book", lookupStart);
   if (!book) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (!book.hydratedAt) {
@@ -38,8 +46,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const limiter = await rateLimit(`hydrate:${clientIp(request.headers)}`, 20, 60);
     if (!limiter.ok) return rateLimitResponse(limiter);
 
+    const hydrateStart = Date.now();
     try {
       book = await hydrateBook(book);
+      mark("hydrate", hydrateStart);
     } catch (error) {
       if (error instanceof HydrationFailedError) {
         // Nothing was written and the book stays a cache miss, so a retry is
@@ -55,12 +65,22 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
   // Hand over the row we already have: on the cached path this takes the
   // request from three sequential round trips to two.
+  const detailStart = Date.now();
   const detail = await getBookDetail(id, book);
+  mark("db-detail", detailStart);
   if (!detail) return Response.json({ error: "Not found" }, { status: 404 });
 
-  return Response.json({
-    book: detail,
-    // Tells the client whether to fire the background generation request.
-    questionsPending: detail.questionsGeneratedAt === null,
-  });
+  mark("total", started);
+
+  /*
+   * Server-Timing so "why is this slow" is answerable from devtools rather than
+   * by guesswork: open the Network tab, click the request, read the Timing
+   * panel. `db-book` covers waking the database, `hydrate` only appears on a
+   * book's first ever open, and the gap between `total` and the request's wall
+   * time is network plus function cold start.
+   */
+  return Response.json(
+    { book: detail },
+    { headers: { "server-timing": marks.join(", ") } },
+  );
 }

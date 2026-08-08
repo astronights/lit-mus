@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { EmptyNote, ErrorNote, Loading, PageHeader, SignInPrompt } from "@/components/ui";
+import { EmptyNote, ErrorNote, PageHeader, SignInPrompt } from "@/components/ui";
 import type { BookQuestion } from "@/lib/books";
 import type { DrillCard } from "@/lib/drill";
 import { shelfColour } from "@/lib/shelf";
@@ -25,13 +25,19 @@ type CardOutcome = {
  * detail. Missing the riddle still reveals the answer and continues into the
  * details, because the goal is learning rather than scoring -- aborting on a
  * miss would deny the exact repetition you most need.
+ *
+ * Cards are fetched one at a time. A book nobody has opened needs Wikipedia and
+ * a Gemini call before it can be asked about, so the wait is real and is shown
+ * rather than hidden.
  */
 export default function DrillPage() {
-  const { data, error, loading, unauthorized, reload } = useApi<{ cards: DrillCard[] }>(
+  const { data, error, loading, unauthorized, reload } = useApi<{ bookIds: number[] }>(
     "/api/drill/session",
   );
 
-  const [queue, setQueue] = useState<DrillCard[]>([]);
+  const [queue, setQueue] = useState<number[]>([]);
+  const [card, setCard] = useState<DrillCard | null>(null);
+  const [cardLoading, setCardLoading] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -39,20 +45,58 @@ export default function DrillPage() {
   const [completed, setCompleted] = useState(0);
 
   useEffect(() => {
-    if (data) setQueue(data.cards);
+    if (data) setQueue(data.bookIds);
   }, [data]);
 
-  const card = queue[0] ?? null;
+  /*
+   * Fetch the card at the head of the queue.
+   *
+   * A 204 means the book cannot produce questions -- too thin an article -- so
+   * it is dropped and the next id is tried. That is invisible to the player:
+   * from their side it is simply the next book, which is why the loading state
+   * covers the whole hunt rather than each attempt.
+   */
+  const wanted = queue[0] ?? null;
+  const inFlight = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (wanted === null || card !== null || summary !== null) return;
+    if (inFlight.current === wanted) return;
+    inFlight.current = wanted;
+
+    let cancelled = false;
+    setCardLoading(true);
+
+    fetch(`/api/drill/card/${wanted}`)
+      .then(async (response) => {
+        if (cancelled) return;
+        if (response.status === 204) {
+          setQueue((current) => current.filter((id) => id !== wanted));
+          return;
+        }
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        const result = (await response.json()) as { card: DrillCard };
+        setCard(result.card);
+      })
+      .catch(() => {
+        if (!cancelled) setQueue((current) => current.filter((id) => id !== wanted));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCardLoading(false);
+          inFlight.current = null;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wanted, card, summary]);
+
   const question: BookQuestion | undefined = card?.questions[questionIndex];
   // The riddle is the whole point of step 1: nothing about the book is shown
   // until it has been answered, missed, or skipped.
   const identified = questionIndex > 0 || summary !== null;
-
-  const resetCard = useCallback(() => {
-    setAnswers([]);
-    setQuestionIndex(0);
-    setRevealed(false);
-  }, []);
 
   const finishCard = useCallback(
     async (finalAnswers: Answer[]) => {
@@ -64,11 +108,11 @@ export default function DrillPage() {
         body: JSON.stringify({ bookId: card.bookId, answers: finalAnswers }),
       });
 
-      const outcome = response.ok
-        ? ((await response.json()) as CardOutcome)
-        : { box: card.box, dueAt: new Date().toISOString(), cleanPass: false, recorded: false };
-
-      setSummary(outcome);
+      setSummary(
+        response.ok
+          ? ((await response.json()) as CardOutcome)
+          : { box: card.box, dueAt: new Date().toISOString(), cleanPass: false, recorded: false },
+      );
     },
     [card],
   );
@@ -81,43 +125,37 @@ export default function DrillPage() {
       setAnswers(next);
       setRevealed(false);
 
-      if (questionIndex + 1 >= card.questions.length) {
-        void finishCard(next);
-      } else {
-        setQuestionIndex(questionIndex + 1);
-      }
+      if (questionIndex + 1 >= card.questions.length) void finishCard(next);
+      else setQuestionIndex(questionIndex + 1);
     },
     [answers, card, finishCard, question, questionIndex],
   );
 
+  const advance = useCallback(() => {
+    setSummary(null);
+    setCard(null);
+    setAnswers([]);
+    setQuestionIndex(0);
+    setRevealed(false);
+    setQueue((current) => current.slice(1));
+  }, []);
+
   /**
-   * Skip is neutral, not a miss: nothing is recorded and the card comes back
-   * later in this session. Skipping the riddle parks the whole card, since
-   * being shown the title would spoil it on the second pass.
+   * Skip drops the whole book, from any question.
+   *
+   * Nothing is recorded: no `DrillResult`, no box change, no due date. Skip
+   * means "not this one, not now", which is a different thing from getting it
+   * wrong and must not be allowed to affect scheduling.
    */
   const skip = useCallback(() => {
-    if (!card) return;
-
-    if (questionIndex === 0) {
-      setQueue((current) => [...current.slice(1), current[0]!]);
-      resetCard();
-      return;
-    }
-
-    setRevealed(false);
-    if (questionIndex + 1 >= card.questions.length) {
-      void finishCard(answers);
-    } else {
-      setQuestionIndex(questionIndex + 1);
-    }
-  }, [answers, card, finishCard, questionIndex, resetCard]);
+    setCompleted((value) => value + 1);
+    advance();
+  }, [advance]);
 
   const nextCard = useCallback(() => {
-    setSummary(null);
     setCompleted((value) => value + 1);
-    setQueue((current) => current.slice(1));
-    resetCard();
-  }, [resetCard]);
+    advance();
+  }, [advance]);
 
   const correct = useMemo(
     () => answers.filter((entry) => entry.outcome === "got_it").length,
@@ -133,8 +171,60 @@ export default function DrillPage() {
     );
   }
 
-  if (loading) return <Loading label="Building your session…" />;
+  if (loading) {
+    return (
+      <>
+        <SessionProgress remaining={0} completed={0} />
+        <LoadingCard label="Building your session…" />
+      </>
+    );
+  }
+
   if (error) return <ErrorNote message={error} />;
+
+  if (summary && card) {
+    return (
+      <>
+        <SessionProgress remaining={queue.length} completed={completed} />
+        <div className="ink-card p-5 text-center" data-shelf={shelfColour(card.bookId)}>
+          <p className="text-xs uppercase tracking-wide opacity-70">Card summary</p>
+          <p className="mt-2 font-display text-4xl">
+            {correct} / {card.questions.length}
+          </p>
+          <p className="mt-1 font-display text-lg">{card.title}</p>
+
+          <p className="mt-4 text-sm">
+            {summary.recorded ? (
+              <>
+                {summary.cleanPass ? "Clean pass — promoted to " : "Box "}
+                <strong>box {summary.box}</strong>, due {formatDue(summary.dueAt)}.
+              </>
+            ) : (
+              "Nothing recorded."
+            )}
+          </p>
+
+          <button
+            type="button"
+            onClick={nextCard}
+            className="ink-button mt-5 w-full bg-accent px-4 py-2.5 font-display text-lg text-accent-foreground"
+          >
+            Next card
+          </button>
+          <RetireButton bookId={card.bookId} onDone={nextCard} />
+        </div>
+      </>
+    );
+  }
+
+  if (cardLoading || (wanted !== null && !card)) {
+    return (
+      <>
+        <SessionProgress remaining={queue.length} completed={completed} />
+        <LoadingCard label="Fetching the next book…" hint="First time for this one — reading Wikipedia and writing questions." />
+      </>
+    );
+  }
 
   if (!card) {
     return (
@@ -155,52 +245,13 @@ export default function DrillPage() {
             </button>
           </div>
         ) : (
-          <EmptyNote>
-            Nothing to drill yet. Open a few books from Browse first — a book becomes drillable
-            once it has been hydrated and has questions.
-          </EmptyNote>
+          <EmptyNote>Nothing to drill — seed some books first.</EmptyNote>
         )}
       </>
     );
   }
 
-  if (summary) {
-    return (
-      <>
-        <SessionProgress remaining={queue.length} completed={completed} />
-        <div className="ink-card p-5 text-center" data-shelf={shelfColour(card.bookId)}>
-          <p className="text-xs uppercase tracking-wide opacity-70">Card summary</p>
-          <p className="mt-2 font-display text-4xl">
-            {correct} / {card.questions.length}
-          </p>
-          <p className="mt-1 font-display text-lg">{card.title}</p>
-
-          <p className="mt-4 text-sm">
-            {summary.recorded ? (
-              <>
-                {summary.cleanPass ? "Clean pass — promoted to " : "Box "}
-                <strong className="text-foreground">box {summary.box}</strong>, due{" "}
-                {formatDue(summary.dueAt)}.
-              </>
-            ) : (
-              "Skipped — nothing recorded."
-            )}
-          </p>
-
-          <button
-            type="button"
-            onClick={nextCard}
-            className="ink-button mt-5 w-full bg-accent px-4 py-2.5 font-display text-lg text-accent-foreground"
-          >
-            Next card
-          </button>
-          <RetireButton bookId={card.bookId} onDone={nextCard} />
-        </div>
-      </>
-    );
-  }
-
-  if (!question) return <Loading />;
+  if (!question) return <LoadingCard label="Loading…" />;
 
   return (
     <>
@@ -265,10 +316,12 @@ export default function DrillPage() {
           onClick={skip}
           className="ink-button mt-2 w-full bg-surface px-4 py-2.5 text-sm"
         >
-          Skip {questionIndex === 0 ? "this book" : "this question"}
+          Skip this book
         </button>
         <p className="mt-2 text-center text-[11px] opacity-70">
-          Skipping records nothing and brings the card back later this session.
+          Skipping records nothing and moves on. A book only advances a box if you get all
+          {" "}
+          {card.questions.length} right.
         </p>
       </div>
 
@@ -276,6 +329,29 @@ export default function DrillPage() {
         Question {questionIndex + 1} of {card.questions.length} · box {card.box}
       </p>
     </>
+  );
+}
+
+/** Drawn loading block, so a slow first fetch looks intentional. */
+function LoadingCard({ label, hint }: { label: string; hint?: string }) {
+  return (
+    <div className="ink-card p-8 text-center" role="status" aria-live="polite">
+      <span className="mx-auto flex w-fit gap-1.5" aria-hidden>
+        {[0, 1, 2].map((index) => (
+          <span
+            key={index}
+            className="h-4 w-3 rounded-sm border-2 border-ink bg-accent"
+            style={{ animation: `drill-book 900ms ${index * 140}ms ease-in-out infinite` }}
+          />
+        ))}
+      </span>
+      <p className="mt-4 font-display text-lg">{label}</p>
+      {hint ? <p className="mt-1 text-xs opacity-70">{hint}</p> : null}
+      <style>{`@keyframes drill-book {
+        0%, 100% { transform: translateY(0) }
+        50% { transform: translateY(-7px) }
+      }`}</style>
+    </div>
   );
 }
 
@@ -306,7 +382,7 @@ function RetireButton({ bookId, onDone }: { bookId: number; onDone: () => void }
         }).catch(() => {});
         onDone();
       }}
-      className="mt-3 w-full text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-50"
+      className="mt-3 w-full text-xs underline underline-offset-2 opacity-70 disabled:opacity-40"
     >
       I&apos;ve got this — stop showing me
     </button>

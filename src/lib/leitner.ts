@@ -164,12 +164,20 @@ export function composeSession(
   const dueBudget = Math.max(size - Math.min(newBooks, fresh.length), 0);
   for (const candidate of due.slice(0, dueBudget)) take(candidate);
 
-  for (const candidate of shuffle(fresh, random).slice(0, newBooks)) take(candidate);
+  const shuffled = shuffle(fresh, random);
+  for (const candidate of shuffled.slice(0, newBooks)) take(candidate);
 
   // Due books beyond the budget, if the new-book quota came up short.
   for (const candidate of due) take(candidate);
 
   for (const candidate of weightedByBox(notYetDue, random)) take(candidate);
+
+  // Finally, more never-drilled books. Without this a user with nothing in
+  // rotation yet -- which is everyone on day one, and anyone whose books are
+  // all in the higher boxes -- gets a session of exactly `newBooks` cards and
+  // then "session done". The quota is there to stop new books crowding out due
+  // ones, not to cap a session that has nothing else to offer.
+  for (const candidate of shuffled) take(candidate);
 
   return queue;
 }

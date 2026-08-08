@@ -131,6 +131,34 @@ describe("composeSession", () => {
     expect(queue.slice(1)).toEqual([3, 2]);
   });
 
+  it("fills the session from never-drilled books when nothing is in rotation", () => {
+    // Day one: no drill state at all. The new-book quota must not cap the
+    // session at three cards and call it done.
+    const candidates: Candidate[] = Array.from({ length: 30 }, (_, index) => ({
+      bookId: index + 1,
+      box: null,
+      dueAt: null,
+    }));
+
+    expect(composeSession(candidates, { size: 12, newBooks: 3, now: NOW })).toHaveLength(12);
+  });
+
+  it("still caps new books when there are due ones competing for the session", () => {
+    const candidates: Candidate[] = [
+      ...Array.from({ length: 20 }, (_, index) => overdue(index + 1, 2, 3)),
+      ...Array.from({ length: 20 }, (_, index) => ({
+        bookId: 100 + index,
+        box: null,
+        dueAt: null,
+      })),
+    ];
+
+    const queue = composeSession(candidates, { size: 10, newBooks: 3, now: NOW });
+
+    expect(queue).toHaveLength(10);
+    expect(queue.filter((id) => id >= 100)).toHaveLength(3);
+  });
+
   it("never repeats a book within a session", () => {
     const candidates: Candidate[] = [overdue(1, 1, 1), overdue(1, 1, 1), overdue(2, 1, 1)];
     const queue = composeSession(candidates, { size: 10, newBooks: 0, now: NOW });

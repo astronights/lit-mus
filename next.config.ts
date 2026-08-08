@@ -12,7 +12,10 @@ const nextConfig: NextConfig = {
   // and Next's tracer cannot follow a dynamic readFileSync path -- without
   // this they are missing from the deployed bundle.
   outputFileTracingIncludes: {
-    "/api/books/[id]/questions": ["./prompts/**"],
+    // Question generation moved from the book route into Drill; the prompt is
+    // read from disk at runtime, so it has to be traced into *that* function or
+    // generation fails on Vercel with a missing file.
+    "/api/drill/card/[bookId]": ["./prompts/**"],
     "/api/cron/seed": ["./data/**"],
   },
 };

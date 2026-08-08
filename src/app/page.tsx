@@ -11,8 +11,6 @@ type CategoryRow = {
   slug: string;
   name: string;
   type: string;
-  total: number;
-  hydrated: number;
 };
 
 /**
@@ -24,7 +22,7 @@ export default function BrowsePage() {
 
   return (
     <>
-      <PageHeader title="Browse" subtitle="Categories, and how much of each you've opened." />
+      <PageHeader title="Browse" subtitle="Pick a shelf." />
 
       {loading ? <Loading /> : null}
       {error ? <ErrorNote message={error} /> : null}
@@ -43,34 +41,16 @@ export default function BrowsePage() {
               data-shelf={shelfColour(category.id)}
               className="ink-card ink-button flex items-center justify-between gap-3 px-4 py-3"
             >
-              <span className="min-w-0">
-                <span className="block truncate font-display text-lg leading-tight">
-                  {category.name}
-                </span>
-                <span className="block text-xs opacity-70">
-                  {category.hydrated} / {category.total} opened
-                </span>
+              <span className="min-w-0 truncate font-display text-lg leading-tight">
+                {category.name}
               </span>
-              <CoverageBar hydrated={category.hydrated} total={category.total} />
+              <span aria-hidden className="shrink-0 font-display text-lg opacity-60">
+                →
+              </span>
             </Link>
           </li>
         ))}
       </ul>
     </>
-  );
-}
-
-function CoverageBar({ hydrated, total }: { hydrated: number; total: number }) {
-  const fraction = total > 0 ? Math.min(1, hydrated / total) : 0;
-  return (
-    <span
-      className="h-2.5 w-16 shrink-0 overflow-hidden rounded-full border-2 border-ink bg-surface"
-      aria-hidden
-    >
-      <span
-        className="block h-full bg-ink"
-        style={{ width: `${Math.round(fraction * 100)}%` }}
-      />
-    </span>
   );
 }

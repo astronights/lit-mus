@@ -66,24 +66,6 @@ export default function ProgressPage() {
         ) : null}
       </section>
 
-      <section className="ink-card mt-4 p-4">
-        <h2 className="font-display text-base uppercase tracking-wide opacity-70">
-          Coverage
-        </h2>
-        <ul className="mt-3 space-y-1.5">
-          {data.categories.map((category) => (
-            <li key={category.slug} className="flex items-baseline justify-between gap-3 text-sm">
-              <Link href={`/browse/${category.slug}`} className="truncate hover:text-accent">
-                {category.name}
-              </Link>
-              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                {category.hydrated} / {category.total}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       {data.struggling.length > 0 ? (
         <section className="ink-card mt-4 p-4">
           <h2 className="font-display text-base uppercase tracking-wide opacity-70">

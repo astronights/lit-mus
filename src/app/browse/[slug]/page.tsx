@@ -17,8 +17,6 @@ export default function CategoryPage() {
     slug ? `/api/categories/${encodeURIComponent(slug)}/books` : null,
   );
 
-  const opened = data?.books.filter((book) => book.hydrated).length ?? 0;
-
   return (
     <>
       <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
@@ -26,7 +24,7 @@ export default function CategoryPage() {
       </Link>
       <PageHeader
         title={titleFromSlug(slug)}
-        subtitle={data ? `${opened} of ${data.books.length} opened` : undefined}
+        subtitle={data ? `${data.books.length} books` : undefined}
       />
 
       {loading ? <Loading /> : null}
