@@ -358,6 +358,12 @@ question is one row you can edit.
 characters immediately; the client then fires `POST /api/books/:id/questions`, and the detail
 screen fills in section 5 when it lands.
 
+**How many calls are in flight.** Drill keeps a buffer of **two** cards: the one on screen and
+one prepared behind it. Ids come a dozen at a time — they are a single query with no hydration
+and no Gemini — but a *card* costs a Wikipedia fetch and a Gemini call, so at most one book's
+questions is ever generated speculatively. Moving to the next book is instant; abandoning a
+session wastes at most one generation.
+
 **Free-tier rate limits.** Generation goes through a global throttle
 (`GEMINI_MAX_REQUESTS_PER_MINUTE`, default 10) keyed in Redis, so it is shared across users and
 function instances rather than per-request. Being throttled is not a failure:

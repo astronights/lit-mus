@@ -9,15 +9,23 @@ import { explainEmptySession, type CardUnavailable } from "@/lib/drill-status";
 import { shelfColour } from "@/lib/shelf";
 
 /**
- * Ids are fetched a couple at a time rather than a sessionful up front.
- *
- * They are cheap -- one query, no hydration -- but paging means a session is
- * not capped at an arbitrary twelve, and the "n left" counter stops implying
- * that twelve books were loaded when only ids were.
+ * Ids are cheap -- one query, no hydration, no Gemini -- so they come a
+ * dozen at a time. Paging them at all is only so a session is not capped at
+ * one page: run as long as you like and it keeps finding books.
  */
-const PAGE_SIZE = 2;
-/** Top up while one is still in hand, so the next card is never a cold start. */
-const REFILL_AT = 1;
+const PAGE_SIZE = 12;
+const REFILL_AT = 3;
+
+/**
+ * Cards are the expensive ones: a card that has never been drilled costs a
+ * Wikipedia fetch and a Gemini call, and Gemini's free tier is the binding
+ * constraint on this whole app.
+ *
+ * Two at a time. One is the card on screen, one is prepared behind it, so
+ * moving to the next book is instant instead of a five-second wait — and no
+ * more than one book's questions is ever generated speculatively.
+ */
+const CARD_BUFFER = 2;
 
 type Answer = { questionId: number; outcome: "got_it" | "missed" };
 
@@ -42,14 +50,17 @@ type CardOutcome = {
  * rather than hidden.
  */
 export default function DrillPage() {
-  const [queue, setQueue] = useState<number[]>([]);
+  /** Ids fetched but not yet turned into cards. */
+  const [pending, setPending] = useState<number[]>([]);
   const [served, setServed] = useState<number[]>([]);
   const [exhausted, setExhausted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [card, setCard] = useState<DrillCard | null>(null);
-  const [cardLoading, setCardLoading] = useState(false);
+  /** Prepared cards, at most CARD_BUFFER of them. The head is on screen. */
+  const [cards, setCards] = useState<DrillCard[]>([]);
+  /** Set when a failure is the deployment's rather than a book's. */
+  const [stopped, setStopped] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -83,7 +94,7 @@ export default function DrillPage() {
         return;
       }
 
-      setQueue((current) => [...current, ...bookIds]);
+      setPending((current) => [...current, ...bookIds]);
       setServed((current) => [...current, ...bookIds]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Something went wrong");
@@ -104,13 +115,15 @@ export default function DrillPage() {
     void loadMore();
   }, [loadMore]);
 
-  // Top up while a card is still in hand.
+  // Top up ids while some are still in hand.
   useEffect(() => {
-    if (!exhausted && !loading && queue.length <= REFILL_AT) void loadMore();
-  }, [queue.length, exhausted, loading, loadMore]);
+    if (!exhausted && !loading && !stopped && pending.length <= REFILL_AT) void loadMore();
+  }, [pending.length, exhausted, loading, stopped, loadMore]);
 
   const restart = useCallback(() => {
-    setQueue([]);
+    setPending([]);
+    setCards([]);
+    setStopped(false);
     setServed([]);
     servedRef.current = [];
     setExhausted(false);
@@ -123,30 +136,33 @@ export default function DrillPage() {
   }, [loadMore]);
 
   /*
-   * Fetch the card at the head of the queue.
+   * Keep the card buffer full.
    *
-   * A book that cannot produce questions is dropped and the next id tried,
-   * which is invisible to the player -- from their side it is simply the next
-   * book, so the loading state covers the whole hunt rather than each attempt.
+   * Fires whenever there is spare capacity and an unfetched id, so it fills the
+   * on-screen card first and then prepares exactly one more behind it. A book
+   * that cannot produce questions is dropped and the next id tried, which is
+   * invisible from the player's side -- it is simply the next book.
    *
-   * `generation_unavailable` is the exception. It means the deployment has no
-   * Gemini key, so every remaining book would fail the same way; the queue is
-   * abandoned rather than hydrating eleven more books to prove it.
+   * Some failures are properties of the deployment rather than the book: no
+   * Gemini key, an exhausted quota, generation throwing. Every remaining id
+   * would fail identically, so those stop the session instead of hydrating the
+   * rest of the queue to prove it.
    */
-  const wanted = queue[0] ?? null;
-  const inFlight = useRef<number | null>(null);
+  const inFlight = useRef<Set<number>>(new Set());
 
   useEffect(() => {
-    if (wanted === null || card !== null || summary !== null) return;
-    if (inFlight.current === wanted) return;
-    inFlight.current = wanted;
+    if (stopped) return;
+    if (cards.length + inFlight.current.size >= CARD_BUFFER) return;
 
-    let cancelled = false;
-    setCardLoading(true);
+    const next = pending.find((id) => !inFlight.current.has(id));
+    if (next === undefined) return;
 
-    fetch(`/api/drill/card/${wanted}`)
+    inFlight.current.add(next);
+    // Claim it immediately so a re-render cannot start a second fetch for it.
+    setPending((current) => current.filter((id) => id !== next));
+
+    fetch(`/api/drill/card/${next}`)
       .then(async (response) => {
-        if (cancelled) return;
         if (!response.ok) throw new Error(`Request failed (${response.status})`);
 
         const result = (await response.json()) as
@@ -154,37 +170,36 @@ export default function DrillPage() {
           | { card: null; reason: CardUnavailable; detail?: string };
 
         if (result.card) {
-          setCard(result.card);
+          setCards((current) => [...current, result.card]);
           return;
         }
 
         setDropped((current) => [...current, result.reason]);
         if (result.detail) setDropDetail((current) => current ?? result.detail);
-        // Both of these are properties of the deployment rather than the book,
-        // so every remaining id would fail identically. Stop rather than
-        // hydrate eleven more books to prove it.
+
         const fatal =
           result.reason === "generation_unavailable" ||
           result.reason === "generation_failed" ||
           result.reason === "quota_exceeded";
-        setQueue((current) => (fatal ? [] : current.filter((id) => id !== wanted)));
+        if (fatal) {
+          setStopped(true);
+          setPending([]);
+        }
       })
       .catch(() => {
-        if (cancelled) return;
         setDropped((current) => [...current, "unreachable" as const]);
-        setQueue((current) => current.filter((id) => id !== wanted));
       })
       .finally(() => {
-        if (!cancelled) {
-          setCardLoading(false);
-          inFlight.current = null;
-        }
+        inFlight.current.delete(next);
+        // Nudge the effect so the freed slot is refilled.
+        setPending((current) => [...current]);
       });
+  }, [pending, cards.length, stopped]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [wanted, card, summary]);
+  const card = cards[0] ?? null;
+  /** Books still to come this session: prepared plus not yet fetched. */
+  const remaining = cards.length + pending.length;
+  const cardLoading = card === null && !stopped && (pending.length > 0 || !exhausted);
 
   const question: BookQuestion | undefined = card?.questions[questionIndex];
   // The riddle is the whole point of step 1: nothing about the book is shown
@@ -226,11 +241,11 @@ export default function DrillPage() {
 
   const advance = useCallback(() => {
     setSummary(null);
-    setCard(null);
     setAnswers([]);
     setQuestionIndex(0);
     setRevealed(false);
-    setQueue((current) => current.slice(1));
+    // Drop the finished card; the buffer effect refills the freed slot.
+    setCards((current) => current.slice(1));
   }, []);
 
   /**
@@ -278,7 +293,7 @@ export default function DrillPage() {
   if (summary && card) {
     return (
       <>
-        <SessionProgress remaining={queue.length} completed={completed} />
+        <SessionProgress remaining={remaining} completed={completed} />
         <div className="ink-card p-5 text-center" data-shelf={shelfColour(card.bookId)}>
           <p className="text-xs uppercase tracking-wide opacity-70">Card summary</p>
           <p className="mt-2 font-display text-4xl">
@@ -310,12 +325,13 @@ export default function DrillPage() {
     );
   }
 
-  // Also covers the gap where the queue has emptied and the next page of ids is
-  // still in flight -- without it the screen flashes "Session done" mid-session.
-  if (cardLoading || (wanted !== null && !card) || (!exhausted && queue.length === 0)) {
+  // Covers the gap where the buffer has emptied and the next card or page of
+  // ids is still in flight -- without it the screen flashes "Session done"
+  // mid-session.
+  if (cardLoading) {
     return (
       <>
-        <SessionProgress remaining={queue.length} completed={completed} />
+        <SessionProgress remaining={remaining} completed={completed} />
         <LoadingCard label="Fetching the next book…" hint="First time for this one — reading Wikipedia and writing questions." />
       </>
     );
@@ -361,7 +377,7 @@ export default function DrillPage() {
 
   return (
     <>
-      <SessionProgress remaining={queue.length} completed={completed} />
+      <SessionProgress remaining={remaining} completed={completed} />
 
       <div className="ink-card p-5" data-shelf={identified ? shelfColour(card.bookId) : undefined}>
         {identified ? (
