@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.8
+version: 2026-08-08.1
 ---
 
 # Question generation prompt
@@ -76,9 +76,21 @@ is most striking for this book:
 If more than one well fits, pick the one that would make a room go "oh, *that*
 book" — not the one that is easiest to write.
 
-A "hard particular" is a number, a date, a named real place or event, a physical
-object, an impossible rule, or a formal device. If your clue contains none of
-these, it is not finished.
+A "hard particular" is a number, a named real place or event, a physical object,
+an impossible rule, or a formal device — and it must come from **inside the
+work**, or from what the work did in the world.
+
+**Publication metadata does not count.** The year, the nationality, the genre,
+the publisher, and the prize it won or was shortlisted for are *framing*: fine
+to include, worthless as the clue, because hundreds of books share each of them.
+"This 1977 novel, shortlisted for the Booker Prize" narrows nothing by itself —
+six books were on that shortlist and thousands were published that year.
+
+So the test is not "does my clue contain a date or a proper noun". It is: **strip
+out everything that could be read off a catalogue card — year, prize, nationality,
+genre — and does what remains still point at one book?** If what remains is
+"a woman travels to care for a dying parent" or "a family is divided by war",
+the clue is not finished, however many prizes are named around it.
 
 Rules:
 
@@ -87,8 +99,9 @@ Rules:
   is discarded automatically, so this one is worth care.
 - Do not define the title's words. "A book about a horse that is beautiful and
   black" is a giveaway, not a clue.
-- A date, nationality or genre is fair and helpful: "in which 1877 work…"
-  narrows without giving anything away.
+- A date, nationality or genre is fair and helpful *framing* — "in which 1877
+  work…" places the book without giving anything away — but it is never the clue
+  itself. Add it around a hard particular, never instead of one.
 - Vagueness is not difficulty. A clue nobody can get because it is unspecific
   is a failure; a clue that is precise and still hard is the goal.
 - Return `null` only if the article gives you nothing concrete at all. A plainer
@@ -269,7 +282,47 @@ gestures at the contest without naming the villa — again saving it for a detai
 Mount Tambora is nowhere in the novel, but it is exactly the kind of fact a quiz
 rewards knowing.
 
-### Example 5 — nothing recognisable to ask about
+### Example 5 — the prize and the date are not the clue
+
+Title: The Road to Lichfield
+Author: Penelope Lively
+
+**Rejected riddle:** "This 1977 novel, shortlisted for the Booker Prize, follows
+a woman who leaves her family to care for her father in his final weeks in a
+distant city. Which work?"
+
+This one is harder to spot than a plainly vague clue, because it *looks*
+specific: it has a year and names a real prize. Strip those out and see what is
+left — "a woman leaves her family to care for her dying father in another city".
+That is a situation, not a book. The clue spent its particulars on the catalogue
+card and gave the player nothing to recognise.
+
+The article has better material a paragraph further down: what she finds in the
+house, and where the title's road actually goes.
+
+```json
+{
+  "title_riddle": {
+    "question": "Driving between her family and her dying father's nursing home, a woman learns he kept a mistress for years — and begins an affair of her own. This 1977 debut is named for the cathedral city at the end of that journey. Which work?",
+    "answer": "The Road to Lichfield"
+  },
+  "detail_questions": [
+    { "question": "Which later novel finally won this author the prize she was shortlisted for here?", "answer": "Moon Tiger" }
+  ]
+}
+```
+
+The year survives, but now it is framing around two hard particulars: the
+concealed mistress, and the fact that the title names the city she keeps driving
+to. Note that the second clue points *at* the title without using it — the
+cathedral city is described, never named.
+
+One detail question again. The people in this book are invented and ordinary —
+a schoolmaster, a sister, a father — so there is no second answer that means
+anything to someone who has not read it. Reaching for one would have produced
+exactly the "invented and obscure" question section 2 rejects.
+
+### Example 6 — nothing recognisable to ask about
 
 Title: A Quiet Domestic Novel
 Author: Someone

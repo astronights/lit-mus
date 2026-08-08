@@ -43,9 +43,14 @@ type CardOutcome = {
  * being a spreadsheet.
  *
  * The unit is the book: one card is one book played as riddle -> detail ->
- * detail. Missing the riddle still reveals the answer and continues into the
- * details, because the goal is learning rather than scoring -- aborting on a
- * miss would deny the exact repetition you most need.
+ * detail, and a miss ends the card wherever it happens.
+ *
+ * That last part is a reversal. The original reasoning was that missing the
+ * riddle should still reveal the answer and carry on into the details, because
+ * the goal is learning rather than scoring. In play it read as being made to
+ * finish a book you had already lost: the box only moves on a clean pass, so
+ * once one answer is wrong the remaining questions cannot change the outcome.
+ * They come back, intact, next session.
  *
  * Cards are fetched one at a time. A book nobody has opened needs Wikipedia and
  * a Gemini call before it can be asked about, so the wait is real and is shown
@@ -192,10 +197,16 @@ export default function DrillPage() {
         setDropped((current) => [...current, result.reason]);
         if (result.detail) setDropDetail((current) => current ?? result.detail);
 
+        // None of these are properties of the book: the key is missing, the
+        // allowance is gone, we are inside a rate-limit window, generation is
+        // throwing. Every remaining id would fail the same way, so stop rather
+        // than hydrate the rest of the queue to be told so eleven more times.
+        // Cards already prepared still play out -- only the queue is dropped.
         const fatal =
           result.reason === "generation_unavailable" ||
           result.reason === "generation_failed" ||
-          result.reason === "quota_exceeded";
+          result.reason === "quota_exceeded" ||
+          result.reason === "throttled";
         if (fatal) {
           setStopped(true);
           setPending([]);
@@ -252,7 +263,12 @@ export default function DrillPage() {
       setAnswers(next);
       setRevealed(false);
 
-      if (questionIndex + 1 >= card.questions.length) void finishCard(next);
+      // A miss ends the card there. The box only moves on a clean pass, so the
+      // remaining questions could no longer change what happens to this book --
+      // they were two more questions asked for no reason. The book comes back
+      // next session with all of them intact.
+      const done = outcome === "missed" || questionIndex + 1 >= card.questions.length;
+      if (done) void finishCard(next);
       else setQuestionIndex(questionIndex + 1);
     },
     [answers, card, finishCard, question, questionIndex],
@@ -315,10 +331,21 @@ export default function DrillPage() {
         <SessionProgress remaining={remaining} completed={completed} />
         <div className="ink-card p-5 text-center" data-shelf={shelfColour(card.bookId)}>
           <p className="text-xs uppercase tracking-wide opacity-70">Card summary</p>
+          {/* Out of what was asked, not out of three: a card that ended on a
+              miss never showed the rest, and scoring you 0/3 for one wrong
+              answer reads as a harsher verdict than the box actually gave. */}
           <p className="mt-2 font-display text-4xl">
-            {correct} / {card.questions.length}
+            {correct} / {answers.length}
           </p>
           <p className="mt-1 font-display text-lg">{card.title}</p>
+
+          {answers.length < card.questions.length ? (
+            <p className="mt-1 text-xs opacity-70">
+              Ended on a miss — the other{" "}
+              {card.questions.length - answers.length === 1 ? "question is" : "questions are"}{" "}
+              waiting for next time.
+            </p>
+          ) : null}
 
           <p className="mt-4 text-sm">
             {summary.recorded ? (
@@ -460,9 +487,8 @@ export default function DrillPage() {
           Skip this book
         </button>
         <p className="mt-2 text-center text-[11px] opacity-70">
-          Skipping records nothing and moves on. A book only advances a box if you get all
-          {" "}
-          {card.questions.length} right.
+          A miss ends the book here; skipping records nothing. A book only advances a box if you
+          get all {card.questions.length} right.
         </p>
       </div>
 

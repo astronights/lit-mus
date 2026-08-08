@@ -460,9 +460,20 @@ the likelier target of a repeat search.
 4. CARD SUMMARY — 3/3, 2/3 etc., then next card
 ```
 
-Missing the riddle still reveals the answer and continues into the details. The goal is
-learning, not scoring — aborting the card on a miss would deny you the exact repetition you
-need most.
+**A miss ends the card wherever it happens.** The answer is still revealed, then the book is
+recorded and the session moves on; its remaining questions come back intact next session.
+
+> **Changed, after playing it.** The draft had a miss reveal the answer and carry on into the
+> details, on the reasoning that the goal is learning rather than scoring, so aborting would
+> deny you the repetition you most need. In the hand it read as being made to finish a book you
+> had already lost — and the reasoning doesn't survive contact with the scheduler, since the box
+> only moves on a clean pass. Once one answer is wrong, the remaining questions cannot change
+> what happens to the book; they are two more taps for no outcome. Ending the card and bringing
+> the book back sooner *is* the repetition, delivered when it will do more good.
+
+The card summary therefore scores out of the questions **asked**, not out of three: a card that
+ended on the riddle never showed the rest, and "0 / 3" reads as a harsher verdict than the box
+actually gave.
 
 **Skip drops the whole book, from any question.** No `DrillResult` is written, no box change,
 no due date change: skip means "not this one, not now", which is a different thing from getting

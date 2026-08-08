@@ -77,6 +77,10 @@ describe("prompt examples", () => {
     expect(headings).toContain("vague versus specific");
     expect(headings).toContain("came to be written");
     expect(headings).toContain("nothing recognisable");
+    // The subtlest failure, and the one seen in the wild: a clue that looks
+    // specific because it names a year and a prize, but whose actual content
+    // is a situation any number of books share.
+    expect(headings).toContain("not the clue");
   });
 
   for (const example of examples) {

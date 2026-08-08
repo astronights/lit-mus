@@ -49,14 +49,22 @@ export type GenerationOutcome =
  * a way nobody notices: too low silently wastes an allowance we are going out
  * of our way to husband, too high just hands the 429 back to Google.
  *
- * So the local budget is a low, model-agnostic floor whose only job is to stop
- * a runaway loop, and the real enforcement is Google's own 429 -- which now
- * tells us how long to wait and which ceiling we hit (see quotaCooldown below).
+ * So the local budget is a model-agnostic runaway-loop guard, not a mirror of
+ * anyone's quota, and the real enforcement is Google's own 429 -- which now
+ * tells us how long to wait and which ceiling we hit (see quotaCooldown).
+ *
+ * Set generously on purpose. Now that a 429 is handled properly, refusing a
+ * call the project's real allowance would have permitted is the worse of the
+ * two errors: Google's answer is authoritative, arrives with its own retry
+ * delay, and costs exactly one wasted call to learn. A local limit that fires
+ * first just makes the app quieter than it needs to be -- an earlier, tighter
+ * pair of defaults tripped the per-minute one during ordinary play.
+ *
  * Set the env vars to the number AI Studio shows for your project;
  * `npm run check:models` prints the ids that key can use.
  */
-const DEFAULT_REQUESTS_PER_MINUTE = 5;
-const DEFAULT_REQUESTS_PER_DAY = 100;
+const DEFAULT_REQUESTS_PER_MINUTE = 10;
+const DEFAULT_REQUESTS_PER_DAY = 250;
 
 /**
  * Global ceilings, shared across every user and every function instance --
