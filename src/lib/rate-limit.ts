@@ -19,13 +19,46 @@ export type RateLimitResult = {
   resetSeconds: number;
 };
 
+/** First of these env vars with a non-empty value. */
+function firstEnv(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+/*
+ * Two spellings accepted. `UPSTASH_REDIS_REST_*` is what this app documents;
+ * `KV_REST_API_*` is what Vercel's Upstash integration writes by itself, and
+ * making people copy one into the other is a step at which the wrong value gets
+ * picked. There are five variables in that integration's output and only two are
+ * usable -- the read-only token silently fails every INCR, and the KV_URL /
+ * REDIS_URL pair are rediss:// TCP endpoints that this HTTPS REST client cannot
+ * speak to at all.
+ */
+const redisUrl = firstEnv("UPSTASH_REDIS_REST_URL", "KV_REST_API_URL");
+const redisToken = firstEnv("UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN");
+
+/**
+ * A `rediss://` URL here is the commonest way to configure this wrongly, and it
+ * would otherwise fail per request rather than at startup -- which, since the
+ * limiter falls back silently, means never being noticed at all.
+ */
+function usableRestUrl(url: string | undefined): url is string {
+  if (!url) return false;
+  if (/^https?:\/\//.test(url)) return true;
+
+  console.warn(
+    `[rate-limit] ignoring Upstash URL "${url.slice(0, 12)}…": the REST client needs the ` +
+      `https:// endpoint (KV_REST_API_URL), not a rediss:// connection string. ` +
+      `Falling back to per-instance counters.`,
+  );
+  return false;
+}
+
 const redis =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      })
-    : null;
+  usableRestUrl(redisUrl) && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
 
 export const isDistributedLimiterConfigured = redis !== null;
 
