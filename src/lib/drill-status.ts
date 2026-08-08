@@ -18,6 +18,7 @@ export type CardUnavailable =
   | "no_questions"
   | "generation_unavailable"
   | "generation_failed"
+  | "model_busy"
   | "quota_exceeded"
   | "throttled";
 
@@ -39,6 +40,9 @@ export function explainEmptySession(reasons: CardUnavailable[], detail?: string)
     // Distinguished from `no_questions` deliberately: this is generation
     // throwing, which is a bug or a misconfiguration, not a thin article.
     return `Question generation failed${detail ? `: ${detail}` : "."} This is a fault on the app's side, not the books.`;
+  }
+  if (reasons.every((reason) => reason === "model_busy")) {
+    return "Gemini is busy right now — it happens in bursts and passes quickly. Try again in a moment.";
   }
   if (reasons.includes("quota_exceeded")) {
     return (

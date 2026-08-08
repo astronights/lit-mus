@@ -64,3 +64,25 @@ describe("explainEmptySession", () => {
     );
   });
 });
+
+/**
+ * A 503 from Gemini ("this model is currently experiencing high demand") used
+ * to arrive as `generation_failed`, which the client treats as fatal -- so a
+ * passing spike at Google aborted the whole session and told the player it was
+ * the app's fault. It is now its own reason, non-fatal, with wording that says
+ * what it is.
+ */
+describe("a busy model", () => {
+  it("does not read as the app being broken", () => {
+    const message = explainEmptySession(["model_busy", "model_busy"]);
+
+    expect(message).toMatch(/busy/i);
+    expect(message).not.toMatch(/fault|failed|broken/i);
+  });
+
+  it("still reports a real failure when one is mixed in", () => {
+    // A genuine fault must not be masked by whichever reason came first.
+    const message = explainEmptySession(["model_busy", "generation_failed"], "boom");
+    expect(message).toMatch(/fault on the app's side/);
+  });
+});

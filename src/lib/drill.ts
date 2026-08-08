@@ -129,6 +129,9 @@ export async function loadDrillCard(userId: string, bookId: number): Promise<Dri
       return { card: null, reason: "generation_unavailable" };
     }
     if (outcome.status === "throttled") return { card: null, reason: "throttled" };
+    // Not fatal, unlike "failed": Google was briefly overloaded, which says
+    // nothing about the next book, so the session skips this one and carries on.
+    if (outcome.status === "unavailable") return { card: null, reason: "model_busy" };
     if (outcome.status === "quota_exceeded") {
       return {
         card: null,

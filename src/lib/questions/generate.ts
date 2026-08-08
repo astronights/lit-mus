@@ -7,6 +7,7 @@ import {
   GeminiError,
   generateJson,
   isGeminiConfigured,
+  isTransientStatus,
   quotaCooldown,
   resolveModel,
   withGeminiTurn,
@@ -36,6 +37,10 @@ export type GenerationOutcome =
   | { status: "generated"; count: number }
   | { status: "skipped"; reason: "already_generated" | "not_hydrated" | "no_plot" | "not_configured" }
   | { status: "throttled"; retryAfterSeconds: number }
+  // Google is briefly overloaded. Distinct from "failed" because it is nobody's
+  // fault and the next book will very likely work, so a session must carry on
+  // rather than stop and blame itself.
+  | { status: "unavailable"; reason: string }
   | { status: "quota_exceeded"; retryAfterSeconds: number }
   | { status: "failed"; reason: string };
 
@@ -173,6 +178,13 @@ async function askGemini(bookId: number, input: GenerationInput): Promise<Genera
       return { status: "quota_exceeded", retryAfterSeconds: cooldown };
     }
 
+    // Google having a moment. Already retried once inside generateAndValidate,
+    // so by here the spike has lasted a few seconds -- give up on this book,
+    // but say so in a way that lets the session move to the next one.
+    if (error instanceof GeminiError && isTransientStatus(error.status)) {
+      return { status: "unavailable", reason };
+    }
+
     // Deliberately leave `questions_generated_at` null: a transient Gemini
     // failure should not permanently cost the book its questions.
     return { status: "failed", reason };
@@ -215,7 +227,20 @@ async function generateAndValidate(
   context: ValidationContext,
 ): Promise<ValidatedQuestion[]> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await generateJson(prompt);
+    let raw: string;
+    try {
+      raw = await generateJson(prompt);
+    } catch (error) {
+      // A 503 is Google being briefly busy. One short pause clears most of
+      // them, and it costs no quota -- an overloaded request never ran.
+      if (error instanceof GeminiError && isTransientStatus(error.status) && attempt === 0) {
+        console.warn(`[questions] ${error.status} from Gemini, retrying once: ${error.message}`);
+        await new Promise((resolve) => setTimeout(resolve, 3_000));
+        continue;
+      }
+      throw error;
+    }
+
     try {
       return validateQuestions(parseGenerationResponse(raw), context);
     } catch (error) {

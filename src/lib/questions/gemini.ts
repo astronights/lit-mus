@@ -69,6 +69,18 @@ function readQuotaFailure(body: string): { retryAfterSeconds?: number; quotaScop
   return { retryAfterSeconds, quotaScope };
 }
 
+/**
+ * Statuses that mean "ask again shortly", not "this request was wrong".
+ *
+ * 503 is the one seen in practice: `UNAVAILABLE`, "this model is currently
+ * experiencing high demand". It says nothing about the book, the prompt or the
+ * key, and the next call usually succeeds -- so treating it like a permanent
+ * failure is what turned a passing spike at Google into an aborted session.
+ */
+export function isTransientStatus(status: number | undefined): boolean {
+  return status === 500 || status === 502 || status === 503 || status === 504;
+}
+
 /** Floor and ceiling on a cooldown, however long Google says to wait. */
 const MIN_COOLDOWN_SECONDS = 30;
 const MAX_COOLDOWN_SECONDS = 60 * 60;
