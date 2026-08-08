@@ -1,5 +1,5 @@
 ---
-version: 2026-08-08.2
+version: 2026-08-08.3
 ---
 
 # Question generation prompt
@@ -167,6 +167,32 @@ not a shortlist of answers.
 
 Ask about something the book is genuinely associated with — the war it is set
 during, the city it made famous, the practice it helped end.
+
+**The book must be the subject, not the pretext.**
+
+The *answer* looks outward — that is this section's whole point. The *question*
+must look at the book. A real-world fact that merely sits near the book is not a
+question about it.
+
+The test: **delete the book from your question. If what remains still stands as
+a general-knowledge question, it has failed.**
+
+- ❌ "Which prestigious French literary society, of which François Mauriac was a
+  member, awards a prize named after it?" — *Académie française*. A perfectly
+  good pub-quiz question that never mentions the book, names the author
+  outright, and is fully answerable by someone who has never heard of the novel.
+  It teaches nothing about the book and tests nothing about it.
+- ✅ "Which later novel finally won this author the prize she was shortlisted
+  for here?" — the same *shape*, done properly. "This author" and "here" are the
+  book; remove it and the question cannot be asked at all.
+
+Referring to the author is fine — "this novel's author", "the writer" — but a
+fact from the author's *biography* that does not touch this book is a question
+about the author, not about the book. Membership of an academy, a birthplace, a
+day job: unless the book is the reason it matters, ask something else.
+
+Point the question at the work: what it is set during, where it takes place,
+what it caused, who it was written for, what it was nearly called.
 
 The two questions must differ **in kind, not just in wording**: if one asks
 about a place, the other should ask about a person, an event or an object. Two
