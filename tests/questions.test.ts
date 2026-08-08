@@ -64,10 +64,27 @@ describe("riddleLeak", () => {
     expect(riddleLeak("A novel by Karunatilaka about the afterlife.", CONTEXT)).toBe("author");
   });
 
-  it("catches a character name", () => {
-    expect(riddleLeak("A photographer who must reach Jaki from beyond.", CONTEXT)).toContain(
-      "character",
-    );
+  it("allows a character name, which is a clue rather than the answer", () => {
+    // Naming a character does not name the book. Whether *this* character is
+    // famous enough to help is the prompt's call, not something checkable here.
+    expect(riddleLeak("A photographer who must reach Jaki from beyond.", CONTEXT)).toBeNull();
+  });
+
+  it("still catches a character the book is named after", () => {
+    // The reason the blanket ban could go: for a book named after its
+    // protagonist, naming the character is naming the title, and the title
+    // checks above already cover it however the riddle phrases it.
+    const emma = { title: "Emma", author: "Jane Austen", characterNames: ["Emma Woodhouse"] };
+    expect(riddleLeak("A wealthy young matchmaker, Emma Woodhouse, meddles.", emma)).toBe("title");
+
+    const karenina = {
+      title: "Anna Karenina",
+      author: "Leo Tolstoy",
+      characterNames: ["Anna Karenina", "Konstantin Levin"],
+    };
+    expect(
+      riddleLeak("A married woman ruined by her affair with Count Vronsky — Karenina.", karenina),
+    ).toContain("title word");
   });
 
   it("does not trip on short common words shared with the title", () => {

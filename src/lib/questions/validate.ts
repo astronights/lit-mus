@@ -130,11 +130,22 @@ export function riddleLeak(question: string, context: ValidationContext): string
     if (new RegExp(`\\b${escapeRegExp(word)}\\b`).test(haystack)) return `title word "${word}"`;
   }
 
-  for (const name of context.characterNames) {
-    const normalised = normaliseForMatch(name);
-    if (normalised.length > 3 && haystack.includes(normalised)) return `character "${name}"`;
-  }
-
+  /*
+   * Character names are deliberately *not* rejected here any more.
+   *
+   * A famous character is one of the best clues a quizmaster has, and banning
+   * the lot left riddles for obscure books with nothing a reader could grab:
+   * precise, and unguessable. The useful distinction is fame -- Big Brother
+   * yes, an invented schoolmaster no -- and fame is a judgement the model makes
+   * from the article, not something checkable from the string. It lives in the
+   * prompt's anchor rule instead, with the rest of the taste.
+   *
+   * The leak case this used to cover is already covered twice over: a book
+   * named for its protagonist is caught by the title check above (Emma,
+   * Jane Eyre, Black Beauty) or by the distinctive-title-word check
+   * (Anna Karenina). Naming the character there is naming the title, however
+   * the riddle phrases it.
+   */
   return null;
 }
 

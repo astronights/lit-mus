@@ -1,5 +1,5 @@
 ---
-version: 2026-08-08.1
+version: 2026-08-08.2
 ---
 
 # Question generation prompt
@@ -92,11 +92,46 @@ genre — and does what remains still point at one book?** If what remains is
 "a woman travels to care for a dying parent" or "a family is divided by war",
 the clue is not finished, however many prizes are named around it.
 
+### The anchor — specific is not the same as gettable
+
+A hard particular stops the clue being generic. It does not, on its own, give
+the player anything to *recognise*. A riddle built entirely on things only a
+reader of that book has heard of — an invented protagonist, a small town, a
+minor institution — is precise and still unplayable.
+
+So alongside the particular, give the clue **one thing a well-read person who
+has not read the book could plausibly know**. Use the same recognition test as
+the detail questions in section 2. Candidates, in rough order of usefulness:
+
+- **A famous character.** Naming one is allowed and often the best clue there
+  is — the diarist who works at the Ministry of Truth, the whaling captain
+  hunting a white whale. This is a change: character names used to be banned
+  outright, and are not any more.
+- **A real place, event, person or institution** the book attaches to.
+- **A famous adaptation**, or a better-known work by the same author (name the
+  *work*, never the author).
+- **The real thing the title refers to**, described rather than named — and if
+  that thing is obscure, attach it to something that is not. "The cathedral
+  city at the end of that journey" is unguessable; "the cathedral city that was
+  Samuel Johnson's birthplace" is the same clue, made playable.
+
+If a book genuinely offers no anchor, a hard clue is still better than a vague
+one — but look for the anchor first.
+
 Rules:
 
-- It must **not** contain the title, any distinctive word from the title, the
-  author's name, or any character's name. A question containing its own answer
-  is discarded automatically, so this one is worth care.
+- It must **not** contain the title, any distinctive word from the title, or
+  the author's name. A question containing its own answer is discarded
+  automatically, so this one is worth care.
+- Character names **are** allowed, with one exception: a name so bound to the
+  book that it works as the title. Emma Woodhouse, Jane Eyre, Anna Karenina and
+  Black Beauty are the answer, not a clue. Holden Caulfield and Bilbo Baggins
+  are not literally the title, but naming them ends the question — treat them
+  the same way.
+- An obscure character's name is not an anchor. "Follows Anne Linton as she
+  travels north" is the catalogue-card mistake wearing a different hat: a
+  proper noun that looks like information and helps nobody. If the name would
+  mean nothing to a non-reader, describe the person instead of naming them.
 - Do not define the title's words. "A book about a horse that is beautiful and
   black" is a giveaway, not a clue.
 - A date, nationality or genre is fair and helpful *framing* — "in which 1877
@@ -300,10 +335,16 @@ card and gave the player nothing to recognise.
 The article has better material a paragraph further down: what she finds in the
 house, and where the title's road actually goes.
 
+That second clue needs care, and it is the harder half of this example. "Named
+for the cathedral city at the end of that journey" is a true, hard particular
+and still unplayable — nobody guesses a Staffordshire town from "cathedral
+city". The city has to be anchored to something a non-reader knows, and it has
+one: it is Samuel Johnson's birthplace. Same clue, now solvable.
+
 ```json
 {
   "title_riddle": {
-    "question": "Driving between her family and her dying father's nursing home, a woman learns he kept a mistress for years — and begins an affair of her own. This 1977 debut is named for the cathedral city at the end of that journey. Which work?",
+    "question": "Driving between her family and her dying father's nursing home, a woman learns he kept a mistress for years. This 1977 debut is named for the cathedral city at the end of that journey — Samuel Johnson's birthplace. Which work?",
     "answer": "The Road to Lichfield"
   },
   "detail_questions": [
@@ -312,15 +353,21 @@ house, and where the title's road actually goes.
 }
 ```
 
-The year survives, but now it is framing around two hard particulars: the
-concealed mistress, and the fact that the title names the city she keeps driving
-to. Note that the second clue points *at* the title without using it — the
-cathedral city is described, never named.
+The year survives, but now it is framing around a hard particular (the concealed
+mistress) and an anchor (Johnson). Note that the title clue points *at* the
+answer without using it: the city is described and attached to someone famous,
+never named.
 
-One detail question again. The people in this book are invented and ordinary —
-a schoolmaster, a sister, a father — so there is no second answer that means
-anything to someone who has not read it. Reaching for one would have produced
-exactly the "invented and obscure" question section 2 rejects.
+Note also what is **not** in the riddle: the protagonist's name. She is an
+invented, ordinary woman, so "follows Anne Linton" would have added a proper
+noun and no information. Naming a character is worth doing when the character
+is the thing people know — here, describing her is stronger.
+
+One detail question, for the same reason. Everyone in this book is invented and
+ordinary, so there is no second answer that means anything to a non-reader.
+Reaching for one would have produced exactly the "invented and obscure" question
+section 2 rejects; the author's later prize-winner is the one genuinely
+recognisable name attached to this novel.
 
 ### Example 6 — nothing recognisable to ask about
 

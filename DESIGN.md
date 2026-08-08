@@ -355,9 +355,19 @@ What the two question types aim at:
 judged from the string itself, with no outside truth required:
 
 - the JSON must parse (one retry on malformed output)
-- the riddle must not contain the title, a distinctive title word, the author's surname, or a
-  character name — such a riddle is **discarded**, not flagged, since it would spoil the one
-  screen the riddle exists for
+- the riddle must not contain the title, a distinctive title word, or the author's surname —
+  such a riddle is **discarded**, not flagged, since it would spoil the one screen the riddle
+  exists for
+
+> **Changed (prompt 2026-08-08.2): character names are no longer rejected.** They were, and it
+> was costing more than it saved. A famous character is among the best clues a quizmaster has,
+> and banning the lot left riddles for less-known books with nothing a player could grab —
+> precise and unguessable, which is the failure this whole section exists to prevent. The
+> useful line is fame, not character-ness, and fame is a judgement from the article rather than
+> something checkable in a string, so it moved to the prompt's **anchor rule** with the rest of
+> the taste. The leak case is still covered twice: a book named for its protagonist trips the
+> title check (*Emma*, *Jane Eyre*, *Black Beauty*) or the distinctive-title-word check
+> (*Anna Karenina*).
 - a `detail` answer that is merely the title or the author is dropped
 
 The verbatim-answer check is gone, and with it the automated defence against a hallucinated
@@ -825,6 +835,7 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 5c | `Character` table collapsed to `books.characters text[]`; `pending_review` dropped | A table whose only non-key column was always null, storing what is functionally `string[]`. Migration copies the names across before dropping. |
 | 5b | Hydration keeps lead + section headings + plot, not just the Plot section | The lead frames the book and the heading list points at the kind of fact worth asking about. Full reception/legacy prose was tried and dropped as redundant once the model uses its own knowledge. Stored in the existing `source_extract` column — no schema change. |
 | 6 | A riddle that leaks the answer is discarded, not flagged | Nothing to salvage, and it would spoil the Drill screen's core question type. |
+| 6a | Riddles must clear a *specificity* test and an *anchor* test (prompt 2026-08-08.x) | Two failures found in play. A clue can be specific and still say nothing if its particulars are the year and the prize — metadata is shared by hundreds of books. And it can be specific and still be unplayable if every particular is known only to readers of that book; it needs one hook a non-reader could recognise. Character names were unbanned to serve the second. |
 | 7 | Category routes keyed by slug, not numeric id | `/browse/booker` is readable and survives a database rebuild. |
 | 8 | Non-default font pairings use `preload: false` | `next/font` self-hosts at build; there is no per-selection fetch hook. Same intent, achievable mechanism. |
 | 9 | 1001 Books is file-driven; "Widely Translated Classics" added | Wikidata doesn't model the list. The sitelink-count query is the automatable answer to the canon problem. |
