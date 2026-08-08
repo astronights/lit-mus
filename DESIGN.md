@@ -557,7 +557,9 @@ excluded from drill sessions; the button itself is Phase 2.
 
 - **Wikidata is CC0** — no obligations.
 - **Wikipedia text is CC BY-SA.** Each book card carries "Plot summary adapted from Wikipedia"
-  linking the source article, and the footer carries the site-wide licence note.
+  linking the source article. That per-book credit sits beside the reused text and is the
+  load-bearing half of the obligation; the site-wide note is supplementary and lives on
+  Progress, behind a "Sources & licences" disclosure, rather than under every screen.
 
 ---
 
@@ -662,7 +664,7 @@ preference is a two-second re-pick.
 - [x] Anonymous browse/search/book-detail; sign-in required for Drill + Progress
 - [x] Leitner box scheduling + session composition
 - [x] Book Detail screen with answers collapsed by default
-- [x] Wikipedia CC BY-SA attribution on book cards + licence note in footer
+- [x] Wikipedia CC BY-SA attribution on book cards + licence note on Progress
 - [x] Mobile-first responsive layout + Web App Manifest
 - [x] Light / dark / system theme (system default, no-flash script)
 - [x] Three font pairings via CSS variables, `latin-ext` subset

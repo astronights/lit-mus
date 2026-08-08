@@ -3,7 +3,6 @@ import { Bangers, Chewy, Inter, Literata, Patrick_Hand, Shantell_Sans } from "ne
 
 import "./globals.css";
 
-import { AppFooter } from "@/components/app-footer";
 import { Providers } from "@/components/providers";
 import { TabBar } from "@/components/tab-bar";
 import { FONT_INIT_SCRIPT } from "@/lib/preferences";
@@ -95,7 +94,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4">
             <main className="flex-1 pt-4">{children}</main>
-            <AppFooter />
           </div>
           <TabBar />
         </Providers>

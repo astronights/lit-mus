@@ -215,5 +215,6 @@ the whole seed can outrun even a Pro function's time limit.
 ## Licensing
 
 Wikidata is CC0. **Wikipedia text is CC BY-SA**, so plot extracts carry attribution and
-share-alike obligations once anyone but you can see them: each book card links its source
-article, and the footer carries the site-wide licence note.
+share-alike obligations once anyone but you can see them. Each book card links its source
+article next to the text it reused -- that is the half that matters -- and a "Sources &
+licences" disclosure on the Progress tab carries the site-wide note.

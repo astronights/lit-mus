@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { LicenceNote } from "@/components/licence-note";
 import { ErrorNote, Loading, PageHeader, SignInPrompt } from "@/components/ui";
 import type { ProgressSummary } from "@/lib/drill";
 import { useApi } from "@/lib/use-api";
@@ -21,6 +22,8 @@ export default function ProgressPage() {
       <>
         <PageHeader title="Progress" />
         <SignInPrompt what="Progress" />
+        <SettingsLink />
+        <LicenceNote />
       </>
     );
   }
@@ -104,6 +107,39 @@ export default function ProgressPage() {
           </ul>
         </section>
       ) : null}
+
+      <SettingsLink />
+      <LicenceNote />
     </>
+  );
+}
+
+/**
+ * Settings lived only in the old site-wide footer, which meant removing that
+ * footer would have orphaned the theme and font pickers entirely. Progress is
+ * the right home: it is the tab you open deliberately rather than pass through.
+ */
+function SettingsLink() {
+  return (
+    <Link
+      href="/settings"
+      className="ink-button mt-6 flex w-full items-center justify-center gap-2 bg-surface px-4 py-3 font-display text-lg"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z" />
+      </svg>
+      Settings
+    </Link>
   );
 }
