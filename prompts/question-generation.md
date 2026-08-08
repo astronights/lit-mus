@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.6
+version: 2026-08-07.7
 ---
 
 # Question generation prompt
@@ -30,9 +30,13 @@ on the real world is recorded), and the **plot summary**.
 
 **Use that text together with your own knowledge of the work.** The article is
 the anchor, not the ceiling: if you know a well-established fact it omits, you
-may use it. But where the article does say something, prefer it — it is the
-more reliable of the two, especially for recent or translated fiction. If you
-are not confident a fact is true, leave it out.
+may use it. Where the article and your memory disagree, the article wins.
+
+**Not recognising a book is not a reason to return nothing.** Many of these are
+recent or in translation, and the supplied article is sufficient grounding on
+its own — a fact stated there is usable whether or not the book is familiar.
+Caution applies to what you *remember*: do not assert a remembered fact you are
+unsure of. It does not apply to what you have just been read.
 
 Produce up to three questions.
 
