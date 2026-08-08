@@ -19,7 +19,7 @@ export function TabBar() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-ink bg-surface"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Main"
     >
@@ -32,8 +32,8 @@ export function TabBar() {
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-                  active ? "text-accent" : "text-muted-foreground hover:text-foreground"
+                className={`flex flex-col items-center gap-1 py-2.5 font-display text-[13px] transition-colors ${
+                  active ? "text-accent" : "opacity-60 hover:opacity-100"
                 }`}
               >
                 <Icon />
@@ -53,7 +53,7 @@ const iconProps = {
   viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.75,
+  strokeWidth: 2.25,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
   "aria-hidden": true,

@@ -9,7 +9,7 @@ import Link from "next/link";
  */
 export function AppFooter() {
   return (
-    <footer className="mt-10 border-t border-border py-6 text-xs leading-relaxed text-muted-foreground">
+    <footer className="mt-10 border-t-2 border-ink py-6 text-xs leading-relaxed opacity-70">
       <p>
         Plot summaries adapted from{" "}
         <a

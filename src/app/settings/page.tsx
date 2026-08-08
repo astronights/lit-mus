@@ -33,8 +33,8 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" />
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="ink-card p-4">
+        <h2 className="font-display text-base uppercase tracking-wide opacity-70">
           Theme
         </h2>
         <div className="mt-3 grid grid-cols-3 gap-2">
@@ -46,10 +46,10 @@ export default function SettingsPage() {
                 setTheme(option.value);
                 void syncTheme(option.value);
               }}
-              className={`rounded-lg border px-3 py-2 text-sm ${
+              className={`ink-button px-3 py-2 font-display text-base ${
                 mounted && theme === option.value
-                  ? "border-accent bg-accent/10 font-semibold text-accent"
-                  : "border-border"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-surface"
               }`}
             >
               {option.label}
@@ -58,8 +58,8 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="ink-card mt-4 p-4">
+        <h2 className="font-display text-base uppercase tracking-wide opacity-70">
           Fonts
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -72,14 +72,12 @@ export default function SettingsPage() {
               key={option}
               type="button"
               onClick={() => setPairing(option)}
-              className={`block w-full rounded-lg border px-3 py-2.5 text-left ${
-                pairing === option ? "border-accent bg-accent/10" : "border-border"
+              className={`ink-button block w-full px-3 py-2.5 text-left ${
+                pairing === option ? "bg-accent/20" : "bg-surface"
               }`}
             >
               <span className="flex items-baseline justify-between">
-                <span className="font-display text-[15px] font-semibold">
-                  {FONT_PAIRING_LABELS[option].name}
-                </span>
+                <span className="font-display text-lg">{FONT_PAIRING_LABELS[option].name}</span>
                 <span className="text-[11px] text-muted-foreground">
                   {FONT_PAIRING_LABELS[option].display} + {FONT_PAIRING_LABELS[option].body}
                 </span>
@@ -98,8 +96,8 @@ export default function SettingsPage() {
         <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">{GLYPH_CHECK}</p>
       </section>
 
-      <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="ink-card mt-4 p-4">
+        <h2 className="font-display text-base uppercase tracking-wide opacity-70">
           Account
         </h2>
         {session?.user ? (
@@ -108,7 +106,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => authClient.signOut().then(() => window.location.reload())}
-              className="mt-3 rounded-lg border border-border px-3 py-2 text-sm"
+              className="ink-button mt-3 bg-surface px-3 py-2 text-sm"
             >
               Sign out
             </button>

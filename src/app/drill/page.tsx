@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmptyNote, ErrorNote, Loading, PageHeader, SignInPrompt } from "@/components/ui";
 import type { BookQuestion } from "@/lib/books";
 import type { DrillCard } from "@/lib/drill";
+import { shelfColour } from "@/lib/shelf";
 import { useApi } from "@/lib/use-api";
 
 type Answer = { questionId: number; outcome: "got_it" | "missed" };
@@ -140,15 +141,15 @@ export default function DrillPage() {
       <>
         <PageHeader title="Drill" />
         {completed > 0 ? (
-          <div className="rounded-xl border border-border bg-surface p-5 text-center">
-            <p className="font-display text-lg font-semibold">Session done</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <div className="ink-card p-5 text-center">
+            <p className="font-display text-2xl">Session done</p>
+            <p className="mt-1 text-sm opacity-70">
               {completed} {completed === 1 ? "book" : "books"} drilled.
             </p>
             <button
               type="button"
               onClick={reload}
-              className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground"
+              className="ink-button mt-4 bg-accent px-4 py-2 font-display text-lg text-accent-foreground"
             >
               Another session
             </button>
@@ -167,14 +168,14 @@ export default function DrillPage() {
     return (
       <>
         <SessionProgress remaining={queue.length} completed={completed} />
-        <div className="rounded-2xl border border-border bg-surface p-5 text-center">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Card summary</p>
-          <p className="mt-2 font-display text-2xl font-bold">
+        <div className="ink-card p-5 text-center" data-shelf={shelfColour(card.bookId)}>
+          <p className="text-xs uppercase tracking-wide opacity-70">Card summary</p>
+          <p className="mt-2 font-display text-4xl">
             {correct} / {card.questions.length}
           </p>
-          <p className="mt-1 font-display text-[15px] font-semibold">{card.title}</p>
+          <p className="mt-1 font-display text-lg">{card.title}</p>
 
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-4 text-sm">
             {summary.recorded ? (
               <>
                 {summary.cleanPass ? "Clean pass — promoted to " : "Box "}
@@ -189,7 +190,7 @@ export default function DrillPage() {
           <button
             type="button"
             onClick={nextCard}
-            className="mt-5 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground"
+            className="ink-button mt-5 w-full bg-accent px-4 py-2.5 font-display text-lg text-accent-foreground"
           >
             Next card
           </button>
@@ -205,35 +206,39 @@ export default function DrillPage() {
     <>
       <SessionProgress remaining={queue.length} completed={completed} />
 
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="ink-card p-5" data-shelf={identified ? shelfColour(card.bookId) : undefined}>
         {identified ? (
-          <div className="mb-4 flex items-center gap-3 border-b border-border pb-4">
+          <div className="mb-4 flex items-center gap-3 border-b-2 border-ink pb-4">
             {card.coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.coverUrl} alt="" className="h-16 w-11 rounded object-cover" />
+              <img
+                src={card.coverUrl}
+                alt=""
+                className="h-16 w-11 rounded border-2 border-ink object-cover"
+              />
             ) : null}
             <div className="min-w-0">
-              <p className="truncate font-display text-[15px] font-semibold">{card.title}</p>
-              <p className="truncate text-xs text-muted-foreground">{card.author}</p>
+              <p className="truncate font-display text-lg leading-tight">{card.title}</p>
+              <p className="truncate text-xs opacity-70">{card.author}</p>
             </div>
           </div>
         ) : (
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-accent">
+          <p className="mb-3 font-display text-sm uppercase tracking-wide text-accent">
             Title riddle
           </p>
         )}
 
-        <p className="min-h-24 font-display text-xl leading-snug">{question.questionText}</p>
+        <p className="min-h-24 text-lg leading-snug">{question.questionText}</p>
 
         {revealed ? (
-          <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2.5 text-[15px]">
+          <p className="mt-4 rounded-lg border-2 border-ink bg-surface px-3 py-2.5 font-display text-xl">
             {question.answer}
           </p>
         ) : (
           <button
             type="button"
             onClick={() => setRevealed(true)}
-            className="mt-4 text-sm font-medium text-accent"
+            className="mt-4 text-sm underline underline-offset-4"
           >
             Show answer
           </button>
@@ -243,14 +248,14 @@ export default function DrillPage() {
           <button
             type="button"
             onClick={() => answer("got_it")}
-            className="rounded-lg bg-success/15 px-4 py-3 text-sm font-semibold text-success"
+            className="ink-button bg-success px-4 py-3 font-display text-lg text-accent-foreground"
           >
             Got it
           </button>
           <button
             type="button"
             onClick={() => answer("missed")}
-            className="rounded-lg bg-danger/15 px-4 py-3 text-sm font-semibold text-danger"
+            className="ink-button bg-danger px-4 py-3 font-display text-lg text-accent-foreground"
           >
             Missed
           </button>
@@ -258,16 +263,16 @@ export default function DrillPage() {
         <button
           type="button"
           onClick={skip}
-          className="mt-2 w-full rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground"
+          className="ink-button mt-2 w-full bg-surface px-4 py-2.5 text-sm"
         >
           Skip {questionIndex === 0 ? "this book" : "this question"}
         </button>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        <p className="mt-2 text-center text-[11px] opacity-70">
           Skipping records nothing and brings the card back later this session.
         </p>
       </div>
 
-      <p className="mt-3 text-center text-xs text-muted-foreground">
+      <p className="mt-3 text-center text-xs opacity-70">
         Question {questionIndex + 1} of {card.questions.length} · box {card.box}
       </p>
     </>
@@ -277,8 +282,8 @@ export default function DrillPage() {
 function SessionProgress({ remaining, completed }: { remaining: number; completed: number }) {
   return (
     <div className="mb-4 flex items-baseline justify-between">
-      <h1 className="font-display text-2xl font-bold tracking-tight">Drill</h1>
-      <p className="text-xs text-muted-foreground">
+      <h1 className="font-display text-3xl leading-tight">Drill</h1>
+      <p className="text-xs opacity-70">
         {completed} done · {remaining} left
       </p>
     </div>

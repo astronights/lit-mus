@@ -563,7 +563,26 @@ excluded from drill sessions; the button itself is Phase 2.
 
 ## 5e. Visual Design — Theme & Typography
 
-Clean and minimal, content-first: the book card is the product, so chrome stays quiet.
+> **Changed: the app looks like a shelf of hand-drawn paperbacks, not a document.** The first
+> build was "clean and minimal, content-first" — a warm-brown, quiet, document-ish palette with
+> Inter/Literata as the default. It was correct to the brief and dull to use, and this is a
+> personal app for quizzing with friends: the register should be playful.
+>
+> The look now takes after a Wrong Hands cartoon — pastel blocks, heavy black outlines, hard
+> offset shadows, comic lettering. Three things carry it:
+>
+> - **The ink line.** 2px near-black borders and *hard* shadows (`3px 3px 0`, no blur). A
+>   blurred shadow reads as Material and instantly loses the drawn feel.
+> - **Spine colours.** Eight pastels, assigned per book from its id (`src/lib/shelf.ts`), so a
+>   category list reads as a shelf rather than a table. Derived rather than stored: it costs no
+>   column, and it is stable, so a book is the same colour on every device.
+> - **Comic as the default pairing** (Bangers + Shantell Sans), not Clean.
+>
+> Book covers are untouched — they are the one piece of real imagery in the app and they sit on
+> top of the tint rather than replacing it.
+>
+> Dark mode keeps the eight hue angles but drops lightness and chroma; the pastels glare on a
+> dark ground unchanged, and keeping the hues means a book stays recognisably "the green one".
 
 ### Themes
 
@@ -577,9 +596,9 @@ body for plot blurbs and question text.
 
 | Theme | Display | Body |
 |---|---|---|
-| **Clean** (default) | Inter | Literata |
-| **Comic** | Bangers | Shantell Sans |
+| **Comic** (default) | Bangers | Shantell Sans |
 | **Handwritten** | Chewy | Patrick Hand |
+| **Clean** | Inter | Literata |
 
 All six are SIL OFL on Google Fonts, self-hosted at build time by `next/font` — no external
 requests, no layout shift, no licensing question.
@@ -669,7 +688,9 @@ preference is a two-second re-pick.
    International Booker for Phase 1; the job is idempotent so Phase 2 sources just get enabled.
 8. **History storage**: drill state in Neon, per-user. Book content stays ungated and shared.
 9. **Multi-user from day one**: Better Auth, argon2id, revocable sessions, invite code.
-10. **Visual design**: clean/minimal, content-first; light/dark/system; three font pairings.
+10. **Visual design**: drawn comic shelf — pastel spine colours, ink outlines, hard shadows;
+    light/dark/system; three font pairings with Comic as the default. Reversed from the
+    original "clean and minimal" brief, which was accurate and dull — see Section 5e.
 11. **Question display**: immediate, no review queue. The only automated gate left is that a
     riddle must not contain its own answer; detail answers rest on the prompt and the model's
     knowledge. Reversed from the original "verbatim or nothing" rule — see Section 5a.

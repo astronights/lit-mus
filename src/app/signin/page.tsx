@@ -114,7 +114,7 @@ export default function SignInPage() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground disabled:opacity-60"
+          className="ink-button w-full bg-accent px-4 py-3 font-display text-xl text-accent-foreground disabled:opacity-60"
         >
           {busy ? "…" : mode === "signin" ? "Sign in" : "Create account"}
         </button>
@@ -135,7 +135,7 @@ export default function SignInPage() {
 }
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-surface px-4 py-3 text-base outline-none focus:border-accent";
+  "ink-card w-full px-4 py-3 text-base outline-none focus:border-accent";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

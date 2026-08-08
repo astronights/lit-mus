@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { EmptyNote, ErrorNote, Loading, PageHeader } from "@/components/ui";
+import { shelfColour } from "@/lib/shelf";
 import { useApi } from "@/lib/use-api";
 
 type CategoryRow = {
@@ -39,13 +40,14 @@ export default function BrowsePage() {
           <li key={category.id}>
             <Link
               href={`/browse/${category.slug}`}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-muted"
+              data-shelf={shelfColour(category.id)}
+              className="ink-card ink-button flex items-center justify-between gap-3 px-4 py-3"
             >
               <span className="min-w-0">
-                <span className="block truncate font-display text-[15px] font-semibold">
+                <span className="block truncate font-display text-lg leading-tight">
                   {category.name}
                 </span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="block text-xs opacity-70">
                   {category.hydrated} / {category.total} opened
                 </span>
               </span>
@@ -62,11 +64,11 @@ function CoverageBar({ hydrated, total }: { hydrated: number; total: number }) {
   const fraction = total > 0 ? Math.min(1, hydrated / total) : 0;
   return (
     <span
-      className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-surface-muted"
+      className="h-2.5 w-16 shrink-0 overflow-hidden rounded-full border-2 border-ink bg-surface"
       aria-hidden
     >
       <span
-        className="block h-full rounded-full bg-accent"
+        className="block h-full bg-ink"
         style={{ width: `${Math.round(fraction * 100)}%` }}
       />
     </span>

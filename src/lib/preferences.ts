@@ -1,4 +1,4 @@
-export const FONT_PAIRINGS = ["clean", "comic", "handwritten"] as const;
+export const FONT_PAIRINGS = ["comic", "handwritten", "clean"] as const;
 export type FontPairing = (typeof FONT_PAIRINGS)[number];
 
 export const FONT_PAIRING_LABELS: Record<FontPairing, { name: string; display: string; body: string }> = {
@@ -8,7 +8,9 @@ export const FONT_PAIRING_LABELS: Record<FontPairing, { name: string; display: s
 };
 
 export const FONT_STORAGE_KEY = "lit-mus.fonts";
-export const DEFAULT_PAIRING: FontPairing = "clean";
+// The app's look is the drawn comic shelf, so Comic is the default pairing;
+// Clean stays available for anyone who wants to read long blurbs in a serif.
+export const DEFAULT_PAIRING: FontPairing = "comic";
 
 export function isFontPairing(value: unknown): value is FontPairing {
   return typeof value === "string" && (FONT_PAIRINGS as readonly string[]).includes(value);

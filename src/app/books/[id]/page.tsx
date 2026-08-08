@@ -78,7 +78,7 @@ export default function BookDetailPage() {
           <img
             src={book.coverUrl}
             alt={`Cover of ${book.title}`}
-            className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-sm"
+            className="h-36 w-24 shrink-0 rounded-lg border-2 border-ink object-cover shadow-[3px_3px_0_var(--ink)]"
           />
         ) : null}
         <div className="min-w-0">
@@ -101,9 +101,7 @@ export default function BookDetailPage() {
 
       {book.blurb ? (
         <section className="mt-6">
-          <h2 className="mb-2 font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Plot
-          </h2>
+          <h2 className="mb-2 font-display text-base uppercase tracking-wide opacity-70">Plot</h2>
           <p className="text-[15px] leading-relaxed">{book.blurb.shortBlurb}</p>
           {/* Per-card CC BY-SA attribution; the licence note is in the footer. */}
           {book.blurb.sourceUrl ? (
@@ -129,7 +127,7 @@ export default function BookDetailPage() {
 
       {book.characters.length > 0 ? (
         <section className="mt-6">
-          <h2 className="mb-2 font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-2 font-display text-base uppercase tracking-wide opacity-70">
             Key characters
           </h2>
           <ul className="flex flex-wrap gap-1.5">
@@ -143,7 +141,7 @@ export default function BookDetailPage() {
       ) : null}
 
       <section className="mt-6">
-        <h2 className="mb-2 font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-2 font-display text-base uppercase tracking-wide opacity-70">
           Questions
         </h2>
 
@@ -172,20 +170,20 @@ function QuestionCard({ question }: { question: BookQuestion }) {
   const [revealed, setRevealed] = useState(false);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-3.5">
+    <div className="ink-card p-3.5">
       {question.type === "title_riddle" ? (
-        <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-accent">
+        <span className="mb-1.5 block font-display text-xs uppercase tracking-wide text-accent">
           Title riddle
         </span>
       ) : null}
       <p className="text-[15px] leading-relaxed">{question.questionText}</p>
       {revealed ? (
-        <p className="mt-2 font-display text-[15px] font-semibold">{question.answer}</p>
+        <p className="mt-2 font-display text-xl">{question.answer}</p>
       ) : (
         <button
           type="button"
           onClick={() => setRevealed(true)}
-          className="mt-2 text-sm font-medium text-accent"
+          className="mt-2 text-sm underline underline-offset-4"
         >
           Reveal answer
         </button>

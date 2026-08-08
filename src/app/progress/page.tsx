@@ -35,17 +35,17 @@ export default function ProgressPage() {
     <>
       <PageHeader title="Progress" subtitle={`${data.dueToday} due now · ${data.drilledBooks} books in rotation`} />
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="ink-card p-4">
+        <h2 className="font-display text-base uppercase tracking-wide opacity-70">
           Leitner boxes
         </h2>
         <ul className="mt-3 space-y-2">
           {data.boxes.map((box) => (
             <li key={box.box} className="flex items-center gap-3">
               <span className="w-12 shrink-0 text-xs text-muted-foreground">Box {box.box}</span>
-              <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+              <span className="h-4 flex-1 overflow-hidden rounded-full border-2 border-ink bg-surface">
                 <span
-                  className="block h-full rounded-full bg-accent"
+                  className="block h-full bg-accent"
                   style={{ width: `${Math.round((box.count / maxBox) * 100)}%` }}
                 />
               </span>
@@ -63,8 +63,8 @@ export default function ProgressPage() {
         ) : null}
       </section>
 
-      <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="ink-card mt-4 p-4">
+        <h2 className="font-display text-base uppercase tracking-wide opacity-70">
           Coverage
         </h2>
         <ul className="mt-3 space-y-1.5">
@@ -82,8 +82,8 @@ export default function ProgressPage() {
       </section>
 
       {data.struggling.length > 0 ? (
-        <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-          <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <section className="ink-card mt-4 p-4">
+          <h2 className="font-display text-base uppercase tracking-wide opacity-70">
             Consistently missed
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">

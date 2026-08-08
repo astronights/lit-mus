@@ -4,49 +4,72 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Content-first palette. Warm paper in light mode, near-black in dark -- the
- * book card is the product, so the chrome stays quiet.
+ * Comic-shelf look: pastel blocks, heavy ink outlines, hard offset shadows --
+ * a shelf of hand-drawn paperbacks rather than a document.
+ *
+ * The ink line is the whole trick. Borders are 2px of near-black and shadows
+ * are hard (no blur), because a soft shadow reads as Material and instantly
+ * loses the drawn feel.
  */
 :root {
-  --background: oklch(0.985 0.005 95);
+  --background: oklch(0.98 0.012 95);
   --surface: oklch(1 0 0);
-  --surface-muted: oklch(0.965 0.008 95);
-  --foreground: oklch(0.22 0.015 60);
-  --muted-foreground: oklch(0.52 0.012 60);
-  --border: oklch(0.9 0.008 80);
-  --accent: oklch(0.52 0.13 40);
+  --surface-muted: oklch(0.95 0.014 95);
+  --ink: oklch(0.22 0.02 60);
+  --foreground: var(--ink);
+  --muted-foreground: oklch(0.48 0.02 60);
+  --border: var(--ink);
+  --accent: oklch(0.62 0.17 25);
   --accent-foreground: oklch(0.99 0 0);
-  --success: oklch(0.55 0.12 150);
-  --danger: oklch(0.55 0.16 25);
+  --success: oklch(0.55 0.13 150);
+  --danger: oklch(0.55 0.18 25);
 
-  /* Overwritten by the [data-fonts] blocks below. */
-  --font-display-family: var(--font-inter), system-ui, sans-serif;
-  --font-body-family: var(--font-literata), Georgia, serif;
+  /*
+   * Book-spine pastels. Assigned per book so a list reads as a shelf; see
+   * src/lib/shelf.ts for why it is derived from the id rather than stored.
+   */
+  --shelf-1: oklch(0.87 0.062 145);
+  --shelf-2: oklch(0.83 0.068 300);
+  --shelf-3: oklch(0.89 0.052 95);
+  --shelf-4: oklch(0.80 0.088 25);
+  --shelf-5: oklch(0.86 0.055 355);
+  --shelf-6: oklch(0.89 0.055 175);
+  --shelf-7: oklch(0.84 0.070 235);
+  --shelf-8: oklch(0.90 0.082 90);
+
+  --font-display-family: var(--font-bangers), Impact, sans-serif;
+  --font-body-family: var(--font-shantell), "Comic Sans MS", cursive;
 }
 
 .dark {
-  --background: oklch(0.17 0.008 70);
-  --surface: oklch(0.21 0.01 70);
-  --surface-muted: oklch(0.25 0.01 70);
-  --foreground: oklch(0.93 0.008 80);
-  --muted-foreground: oklch(0.68 0.01 80);
-  --border: oklch(0.32 0.012 70);
-  --accent: oklch(0.72 0.12 55);
-  --accent-foreground: oklch(0.18 0.01 70);
-  --success: oklch(0.7 0.13 150);
-  --danger: oklch(0.68 0.15 25);
+  --background: oklch(0.19 0.012 70);
+  --surface: oklch(0.24 0.014 70);
+  --surface-muted: oklch(0.28 0.014 70);
+  --ink: oklch(0.94 0.01 85);
+  --foreground: var(--ink);
+  --muted-foreground: oklch(0.72 0.014 85);
+  --border: var(--ink);
+  --accent: oklch(0.78 0.14 45);
+  --accent-foreground: oklch(0.20 0.012 70);
+  --success: oklch(0.75 0.14 150);
+  --danger: oklch(0.72 0.16 25);
+
+  /*
+   * The same eight hues, dropped in lightness and chroma. Reusing the pastels
+   * unchanged on a dark ground glares; keeping the hue angles means a book is
+   * recognisably "the green one" in either theme.
+   */
+  --shelf-1: oklch(0.42 0.055 145);
+  --shelf-2: oklch(0.40 0.062 300);
+  --shelf-3: oklch(0.42 0.048 95);
+  --shelf-4: oklch(0.42 0.075 25);
+  --shelf-5: oklch(0.41 0.052 355);
+  --shelf-6: oklch(0.42 0.050 175);
+  --shelf-7: oklch(0.41 0.062 235);
+  --shelf-8: oklch(0.44 0.070 90);
 }
 
-/*
- * Font pairings (Section 5e). Display carries titles, headings and the riddle
- * card; body carries plot blurbs and question text. Components only ever
- * reference the two variables, so none of them knows which pairing is active.
- */
-[data-fonts="clean"] {
-  --font-display-family: var(--font-inter), system-ui, sans-serif;
-  --font-body-family: var(--font-literata), Georgia, serif;
-}
-
+/* Font pairings (Section 5e). Comic is the default; the others stay available. */
 [data-fonts="comic"] {
   --font-display-family: var(--font-bangers), Impact, sans-serif;
   --font-body-family: var(--font-shantell), "Comic Sans MS", cursive;
@@ -57,6 +80,11 @@
   --font-body-family: var(--font-patrick-hand), cursive;
 }
 
+[data-fonts="clean"] {
+  --font-display-family: var(--font-inter), system-ui, sans-serif;
+  --font-body-family: var(--font-literata), Georgia, serif;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -64,6 +92,7 @@
   --color-foreground: var(--foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-ink: var(--ink);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
@@ -78,7 +107,6 @@ html {
   color-scheme: light;
 }
 
-.dark html,
 html.dark {
   color-scheme: dark;
 }
@@ -89,7 +117,7 @@ body {
   font-family: var(--font-body-family);
   -webkit-font-smoothing: antialiased;
   /* Room for the fixed tab bar plus the iOS home indicator. */
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
 }
 
 h1,
@@ -99,12 +127,53 @@ h3,
   font-family: var(--font-display-family);
 }
 
-/* Bangers is all-caps and tightly spaced; it needs air the others don't. */
+/*
+ * Bangers is all-caps and tightly spaced, so it needs air the other display
+ * faces do not. Scoped to the pairing rather than baked into components.
+ */
 [data-fonts="comic"] h1,
 [data-fonts="comic"] h2,
+[data-fonts="comic"] h3,
 [data-fonts="comic"] .font-display {
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
+
+/* -------------------------------------------------------------------------- */
+/* The drawn-card primitives                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** A block with an ink outline and a hard offset shadow. */
+.ink-card {
+  border: 2px solid var(--ink);
+  border-radius: 0.85rem;
+  box-shadow: 3px 3px 0 var(--ink);
+  background-color: var(--surface);
+}
+
+/** Pressable version: the shadow collapses as it moves, like a real button. */
+.ink-button {
+  border: 2px solid var(--ink);
+  border-radius: 0.7rem;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ink-button:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+/** Spine colours, applied by `data-shelf` so components stay free of palette. */
+[data-shelf="1"] { background-color: var(--shelf-1); }
+[data-shelf="2"] { background-color: var(--shelf-2); }
+[data-shelf="3"] { background-color: var(--shelf-3); }
+[data-shelf="4"] { background-color: var(--shelf-4); }
+[data-shelf="5"] { background-color: var(--shelf-5); }
+[data-shelf="6"] { background-color: var(--shelf-6); }
+[data-shelf="7"] { background-color: var(--shelf-7); }
+[data-shelf="8"] { background-color: var(--shelf-8); }
 
 @media (prefers-reduced-motion: reduce) {
   *,

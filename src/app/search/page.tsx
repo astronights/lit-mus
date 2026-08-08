@@ -35,7 +35,7 @@ export default function SearchPage() {
         placeholder="Title or author"
         autoComplete="off"
         // 16px minimum: anything smaller makes iOS Safari zoom on focus.
-        className="mb-4 w-full rounded-xl border border-border bg-surface px-4 py-3 text-base outline-none placeholder:text-muted-foreground focus:border-accent"
+        className="ink-card mb-4 w-full px-4 py-3 text-base outline-none placeholder:opacity-50 focus:border-accent"
         aria-label="Search books"
       />
 
