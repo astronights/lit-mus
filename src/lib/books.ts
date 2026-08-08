@@ -115,28 +115,53 @@ export async function listCategoryBooks(
  * not a cheap cache hit -- it is a whole extra network round trip on the path
  * users actually feel.
  */
-export async function getBookDetail(
-  id: number,
-  known?: typeof books.$inferSelect,
-): Promise<BookDetail | null> {
-  const book = known ?? (await db.query.books.findFirst({ where: eq(books.id, id) }));
-  if (!book) return null;
+export async function getBookDetail(id: number): Promise<BookDetail | null> {
+  /*
+   * One round trip, not three.
+   *
+   * This used to be a book lookup followed by a parallel pair for categories
+   * and the blurb. With the Neon HTTP driver every statement is its own HTTPS
+   * request, so "parallel" still meant a second round trip, and the sequence
+   * cost 2x the latency between the function and the database -- on the screen
+   * people wait for most. Folding the two children into scalar subqueries makes
+   * it a single request, and Postgres joins them locally for nothing.
+   */
+  const rows = await db
+    .select({
+      id: books.id,
+      title: books.title,
+      author: books.author,
+      firstPublishYear: books.firstPublishYear,
+      coverUrl: books.coverUrl,
+      hydratedAt: books.hydratedAt,
+      characters: books.characters,
+      categories: sql<Array<{ id: number; slug: string; name: string }>>`(
+        select coalesce(
+          json_agg(json_build_object('id', c.id, 'slug', c.slug, 'name', c.name) order by c.name),
+          '[]'::json
+        )
+        from book_categories bc
+        join categories c on c.id = bc.category_id
+        where bc.book_id = ${books.id}
+      )`,
+      blurb: sql<{ shortBlurb: string; sourceUrl: string | null } | null>`(
+        select json_build_object('shortBlurb', pb.short_blurb, 'sourceUrl', pb.source_url)
+        from plot_blurbs pb
+        where pb.book_id = ${books.id}
+      )`,
+    })
+    .from(books)
+    .where(eq(books.id, id))
+    .limit(1);
 
-  const [categoryRows, blurb] = await Promise.all([
-    db
-      .select({ id: categories.id, slug: categories.slug, name: categories.name })
-      .from(categories)
-      .innerJoin(bookCategories, eq(bookCategories.categoryId, categories.id))
-      .where(eq(bookCategories.bookId, id))
-      .orderBy(asc(categories.name)),
-    db.query.plotBlurbs.findFirst({ where: eq(plotBlurbs.bookId, id) }),
-  ]);
+  const row = rows[0];
+  if (!row) return null;
 
   return {
-    ...toSummary(book),
-    categories: categoryRows,
-    blurb: blurb ? { shortBlurb: blurb.shortBlurb, sourceUrl: blurb.sourceUrl } : null,
-    characters: book.characters ?? [],
+    ...toSummary(row),
+    categories: row.categories ?? [],
+    blurb: row.blurb,
+    characters: row.characters ?? [],
   };
 }
 

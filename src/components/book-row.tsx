@@ -17,6 +17,15 @@ export function BookRow({ book }: { book: BookSummary }) {
   return (
     <Link
       href={`/books/${book.id}`}
+      /*
+       * Book Detail is a dynamic server component that hydrates a book on its
+       * first open, so a prefetch is not a free warm-up -- it is potentially
+       * three external API calls for a book nobody has tapped. Next currently
+       * prefetches nothing for a force-dynamic route, so this changes nothing
+       * today; it is here so that scrolling a category list can never start
+       * hydrating the whole shelf if that behaviour ever changes.
+       */
+      prefetch={false}
       data-shelf={shelfColour(book.id)}
       className="ink-card ink-button flex items-center gap-3 px-3 py-2.5"
     >

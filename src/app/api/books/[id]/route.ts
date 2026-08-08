@@ -63,10 +63,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
   }
 
-  // Hand over the row we already have: on the cached path this takes the
-  // request from three sequential round trips to two.
   const detailStart = Date.now();
-  const detail = await getBookDetail(id, book);
+  const detail = await getBookDetail(id);
   mark("db-detail", detailStart);
   if (!detail) return Response.json({ error: "Not found" }, { status: 404 });
 
