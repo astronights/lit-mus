@@ -303,7 +303,11 @@ slow source degrades to "missing" rather than to a timed-out request.
 ## 5a. Question Generation (Gemini Flash)
 
 **Model**: Gemini Flash on the free tier — question generation is a small, well-constrained
-task that doesn't need a frontier model.
+task that doesn't need a frontier model. The default is **`gemini-2.5-flash-lite`**, chosen for
+its daily allowance rather than its quality: one book is one call, a session is a dozen, and
+2.5 Flash's day is about two sessions. `GEMINI_MODEL` moves up a tier — see `.env.example` for
+the published limits per model, and note the trade-off, which is recall: the riddles lean on
+the model knowing a book past the blurb we hand it, and that is where a lite model is thinnest.
 
 **Prompt design.** The model gets the title, author, character list, and the Wikipedia article
 text, and is asked for strict JSON only.
@@ -358,17 +362,35 @@ question is one row you can edit.
 characters immediately; the client then fires `POST /api/books/:id/questions`, and the detail
 screen fills in section 5 when it lands.
 
-**How many calls are in flight.** Drill keeps a buffer of **two** cards: the one on screen and
-one prepared behind it. Ids come a dozen at a time — they are a single query with no hydration
-and no Gemini — but a *card* costs a Wikipedia fetch and a Gemini call, so at most one book's
-questions is ever generated speculatively. Moving to the next book is instant; abandoning a
-session wastes at most one generation.
+**How many calls are in flight: one.** Drill keeps a buffer of **two** cards — the one on
+screen and one prepared behind it — but fills that buffer **strictly sequentially**: fetch a
+card, wait for it to settle, then fetch the next if there is still room. Ids come a dozen at a
+time, because they are a single query with no hydration and no Gemini; a *card* costs a
+Wikipedia fetch and a Gemini call.
 
-**Free-tier rate limits.** Generation goes through a global throttle
-(`GEMINI_MAX_REQUESTS_PER_MINUTE`, default 10) keyed in Redis, so it is shared across users and
-function instances rather than per-request. Being throttled is not a failure:
-`questions_generated_at` stays null and the next visit tries again. Backfilling the whole seed
-list would still need the slow batch script, not a single job.
+Sequential is a requirement, not an emergent property of the code. Two free-tier calls landing
+in the same minute is the ordinary way to trip a 429, and a 429 puts the whole app into a
+fifteen-minute cooldown rather than costing just the book that caused it. So it is enforced
+twice: the client starts a card fetch only when none is in flight, and `withGeminiTurn` chains
+generations inside the server process so a second tab, or a book page generating in the
+background, cannot overlap a drill session. The server-side chain is per Node process, so it
+narrows the window rather than closing it — the Redis budget below is what makes the ceiling
+global.
+
+Cost of the buffer: moving to the next book is instant, and abandoning a session wastes at most
+one generation.
+
+**Free-tier rate limits.** Generation goes through a global throttle keyed in Redis, so it is
+shared across users and function instances rather than per-request. Being throttled is not a
+failure: `questions_generated_at` stays null and the next visit tries again. Backfilling the
+whole seed list would still need the slow batch script, not a single job.
+
+The per-minute and per-day ceilings **follow the model** (`FREE_TIER` in
+`src/lib/questions/generate.ts`) rather than being fixed numbers, because a budget tuned for
+one model is actively wrong on another: too low wastes an allowance we are going out of our way
+to husband, too high just hands the 429 back to Google. `GEMINI_MAX_REQUESTS_PER_MINUTE` and
+`GEMINI_MAX_REQUESTS_PER_DAY` override when set. The daily cap is the binding one — one book is
+one call, and a session is a dozen.
 
 **Generation is one-shot.** Questions are written once, on first visit, and never regenerated
 in the app. Two consequences built around:
@@ -780,6 +802,7 @@ Where the build differs from the draft, and why. Each is expanded at the relevan
 | 10 | Prizes resolved by `rdfs:label`, not hard-coded QIDs | Readable in review; a rename shows up as a zero-row source instead of silence. |
 | 11 | `attempts`, `pending_review`, `wikipedia_title`, `source_url`, `slug` columns added | Each is load-bearing for a feature the draft described but didn't give storage for. |
 | 12 | Generation throttle is a global Redis token budget, not a queue service | Same guarantee, no extra infrastructure. |
+| 12a | Gemini calls are serialised, client *and* server; ceilings are derived from `GEMINI_MODEL` rather than fixed | A 429 costs the whole app a 15-minute cooldown, so two overlapping calls is a bad trade for a slightly faster buffer fill. Deriving the budget keeps it honest when the model changes. |
 | 13 | `node-postgres` fallback when `DATABASE_URL` is localhost | The whole app, seed job included, runs locally without a Neon account. |
 | 14 | CLI scripts load `.env.local` (and tolerate UTF-16) | `dotenv` only reads `.env`, so drizzle-kit and the seed job ignored the file the README documents. Windows writes UTF-16 by default, which failed with an error pointing at the wrong thing. |
 | 15 | Added `npm run check:sources` | The SPARQL is the one part that can't be unit-tested; this makes verifying it a single command. |

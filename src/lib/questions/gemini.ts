@@ -21,12 +21,53 @@ type GenerateContentResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
+/**
+ * Flash-Lite by default, because the free tier's *daily* cap is what actually
+ * bites here: one book is one call, and a session is a dozen of them, so 2.5
+ * Flash's allowance is a couple of sessions a day. Flash-Lite's is several
+ * times that, which is the difference between drilling when you feel like it
+ * and rationing.
+ *
+ * The cost is recall: the riddles lean on the model knowing a book beyond the
+ * plot blurb we hand it, and that is exactly where a lite model is thinner. If
+ * the questions read as generic, set GEMINI_MODEL="gemini-2.5-flash" and take
+ * the smaller allowance -- the per-minute and per-day budgets follow the model
+ * automatically (see FREE_TIER in generate.ts).
+ */
 export function geminiModel(): string {
-  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite";
 }
 
 export function isGeminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
+}
+
+/**
+ * Serialises Gemini work inside this process: one turn runs at a time, the
+ * next starts only when the previous has settled.
+ *
+ * The drill client already fetches cards one at a time, but that only holds
+ * for one tab. Two tabs, or a book page generating in the background while a
+ * drill session runs, would still overlap -- and two free-tier calls landing
+ * together is exactly what trips a 429, which costs a fifteen-minute cooldown
+ * for the whole app rather than for the one book.
+ *
+ * A promise chain, not a real lock. It serialises within a single Node process
+ * only; on Vercel every function instance has its own chain. This narrows the
+ * window rather than closing it -- the Upstash-backed limiter in generate.ts is
+ * what makes the ceiling actually global.
+ */
+let turns: Promise<unknown> = Promise.resolve();
+
+export function withGeminiTurn<T>(run: () => Promise<T>): Promise<T> {
+  // `run` on both branches: a turn that threw must not stall the queue behind
+  // it, and it must not reject the chain either.
+  const turn = turns.then(run, run);
+  turns = turn.then(
+    () => undefined,
+    () => undefined,
+  );
+  return turn;
 }
 
 /**

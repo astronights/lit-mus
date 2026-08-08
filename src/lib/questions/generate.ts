@@ -3,7 +3,13 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { books, plotBlurbs, quizQuestions } from "@/db/schema";
 import { cooldownRemaining, markCooldown, rateLimit } from "@/lib/rate-limit";
-import { GeminiError, generateJson, geminiModel, isGeminiConfigured } from "@/lib/questions/gemini";
+import {
+  GeminiError,
+  generateJson,
+  geminiModel,
+  isGeminiConfigured,
+  withGeminiTurn,
+} from "@/lib/questions/gemini";
 import { loadPrompt, renderPrompt } from "@/lib/questions/prompt";
 import {
   QuestionParseError,
@@ -33,13 +39,44 @@ export type GenerationOutcome =
   | { status: "failed"; reason: string };
 
 /**
+ * Published free-tier ceilings, per model.
+ *
+ * Here so that changing GEMINI_MODEL changes the budget with it: a limit tuned
+ * for one model is worse than no limit on another -- too low wastes an
+ * allowance we are paying attention to, too high just hands the 429 back to
+ * Google. Google revises these, so the env vars below always win.
+ */
+const FREE_TIER: Record<string, { rpm: number; rpd: number }> = {
+  "gemini-2.5-pro": { rpm: 5, rpd: 100 },
+  "gemini-2.5-flash": { rpm: 10, rpd: 250 },
+  "gemini-2.5-flash-lite": { rpm: 15, rpd: 1_000 },
+  "gemini-2.0-flash": { rpm: 15, rpd: 200 },
+  "gemini-2.0-flash-lite": { rpm: 30, rpd: 200 },
+};
+
+/** Conservative guess for a model we have no published numbers for. */
+const UNKNOWN_MODEL = { rpm: 5, rpd: 100 };
+
+function freeTierCeiling(): { rpm: number; rpd: number } {
+  const model = geminiModel();
+  // Longest matching prefix, so a dated variant lands on its own base model:
+  // "gemini-2.5-flash-lite-preview-09-2025" starts with "gemini-2.5-flash"
+  // too, and matching that would give it less than half its real allowance.
+  const match = Object.keys(FREE_TIER)
+    .filter((name) => model.startsWith(name))
+    .sort((a, b) => b.length - a.length)[0];
+
+  return match ? FREE_TIER[match] : UNKNOWN_MODEL;
+}
+
+/**
  * Global ceilings, shared across every user and every function instance --
  * provided Upstash is configured. Without it the limiter counts per function
  * instance, which on Vercel is close to no limit at all.
  */
 function requestsPerMinute(): number {
   const configured = Number(process.env.GEMINI_MAX_REQUESTS_PER_MINUTE);
-  return Number.isFinite(configured) && configured > 0 ? configured : 10;
+  return Number.isFinite(configured) && configured > 0 ? configured : freeTierCeiling().rpm;
 }
 
 /**
@@ -49,7 +86,7 @@ function requestsPerMinute(): number {
  */
 function requestsPerDay(): number {
   const configured = Number(process.env.GEMINI_MAX_REQUESTS_PER_DAY);
-  return Number.isFinite(configured) && configured > 0 ? configured : 150;
+  return Number.isFinite(configured) && configured > 0 ? configured : freeTierCeiling().rpd;
 }
 
 /** How long to stop asking after Gemini says the quota is gone. */
@@ -72,6 +109,27 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
     return { status: "skipped", reason: "no_plot" };
   }
 
+  const characterNames = book.characters ?? [];
+
+  /*
+   * Everything from here on is serialised: one Gemini call at a time, never
+   * two in parallel. The gates are inside the turn on purpose -- a caller that
+   * waited its turn must re-read the cooldown, because the call ahead of it may
+   * have just discovered the quota is gone.
+   */
+  return withGeminiTurn(() =>
+    askGemini(bookId, {
+      title: book.title,
+      author: book.author,
+      characterNames,
+      sourceText: blurb.sourceExtract,
+    }),
+  );
+}
+
+type GenerationInput = ValidationContext & { sourceText: string };
+
+async function askGemini(bookId: number, input: GenerationInput): Promise<GenerationOutcome> {
   /*
    * Three gates before spending a call, in cost order.
    *
@@ -94,23 +152,19 @@ export async function generateQuestionsForBook(bookId: number): Promise<Generati
     return { status: "throttled", retryAfterSeconds: budget.resetSeconds };
   }
 
-  const characterNames = book.characters ?? [];
+  const { characterNames, sourceText, ...book } = input;
 
   const { version, template } = loadPrompt();
   const prompt = renderPrompt(template, {
     title: book.title,
     author: book.author,
     characters: characterNames,
-    sourceText: blurb.sourceExtract,
+    sourceText,
   });
 
   let validated: ValidatedQuestion[];
   try {
-    validated = await generateAndValidate(prompt, {
-      title: book.title,
-      author: book.author,
-      characterNames,
-    });
+    validated = await generateAndValidate(prompt, { ...book, characterNames });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error(`[questions] generation failed for book ${bookId}: ${reason}`);

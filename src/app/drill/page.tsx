@@ -21,9 +21,11 @@ const REFILL_AT = 3;
  * Wikipedia fetch and a Gemini call, and Gemini's free tier is the binding
  * constraint on this whole app.
  *
- * Two at a time. One is the card on screen, one is prepared behind it, so
- * moving to the next book is instant instead of a five-second wait — and no
- * more than one book's questions is ever generated speculatively.
+ * Buffer depth of two: one card on screen, one prepared behind it, so moving
+ * to the next book is instant instead of a five-second wait — and no more than
+ * one book's questions is ever generated speculatively.
+ *
+ * Depth two, but fetched *one at a time*. See the buffer effect below.
  */
 const CARD_BUFFER = 2;
 
@@ -59,6 +61,8 @@ export default function DrillPage() {
   const [error, setError] = useState<string | null>(null);
   /** Prepared cards, at most CARD_BUFFER of them. The head is on screen. */
   const [cards, setCards] = useState<DrillCard[]>([]);
+  /** Mirror of the in-flight ref, for rendering only. The ref is the guard. */
+  const [fetching, setFetching] = useState(false);
   /** Set when a failure is the deployment's rather than a book's. */
   const [stopped, setStopped] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -136,28 +140,39 @@ export default function DrillPage() {
   }, [loadMore]);
 
   /*
-   * Keep the card buffer full.
+   * Keep the card buffer full, strictly one fetch at a time.
    *
-   * Fires whenever there is spare capacity and an unfetched id, so it fills the
-   * on-screen card first and then prepares exactly one more behind it. A book
-   * that cannot produce questions is dropped and the next id tried, which is
-   * invisible from the player's side -- it is simply the next book.
+   * Sequential is the point, not an accident of the code: a card that has never
+   * been drilled spends a Gemini call, and the free tier's per-minute cap is
+   * small enough that two overlapping calls can trip a 429 -- which costs a
+   * fifteen-minute cooldown for the whole app, not just the one book. So the
+   * buffer is filled one book after another: fetch, settle, then fetch the next
+   * if there is still room.
+   *
+   * A book that cannot produce questions is dropped and the next id tried,
+   * which is invisible from the player's side -- it is simply the next book.
    *
    * Some failures are properties of the deployment rather than the book: no
    * Gemini key, an exhausted quota, generation throwing. Every remaining id
    * would fail identically, so those stop the session instead of hydrating the
    * rest of the queue to prove it.
    */
-  const inFlight = useRef<Set<number>>(new Set());
+  /** The id being fetched right now, or null. Never more than one -- see above. */
+  const inFlight = useRef<number | null>(null);
 
   useEffect(() => {
     if (stopped) return;
-    if (cards.length + inFlight.current.size >= CARD_BUFFER) return;
+    // One at a time. The ref (not state) is the guard, because it has to be
+    // true the instant this effect body runs -- a queued setState would let a
+    // second render start a second fetch before the first was recorded.
+    if (inFlight.current !== null) return;
+    if (cards.length >= CARD_BUFFER) return;
 
-    const next = pending.find((id) => !inFlight.current.has(id));
+    const next = pending[0];
     if (next === undefined) return;
 
-    inFlight.current.add(next);
+    inFlight.current = next;
+    setFetching(true);
     // Claim it immediately so a re-render cannot start a second fetch for it.
     setPending((current) => current.filter((id) => id !== next));
 
@@ -190,7 +205,8 @@ export default function DrillPage() {
         setDropped((current) => [...current, "unreachable" as const]);
       })
       .finally(() => {
-        inFlight.current.delete(next);
+        inFlight.current = null;
+        setFetching(false);
         // Nudge the effect so the freed slot is refilled.
         setPending((current) => [...current]);
       });
@@ -198,8 +214,11 @@ export default function DrillPage() {
 
   const card = cards[0] ?? null;
   /** Books still to come this session: prepared plus not yet fetched. */
-  const remaining = cards.length + pending.length;
-  const cardLoading = card === null && !stopped && (pending.length > 0 || !exhausted);
+  const remaining = cards.length + pending.length + (fetching ? 1 : 0);
+  // `fetching` is in there because the claimed id has already left `pending`:
+  // on the last book of an exhausted queue the other two terms are both zero
+  // while its fetch is still running, and the screen would flash "Session done".
+  const cardLoading = card === null && !stopped && (fetching || pending.length > 0 || !exhausted);
 
   const question: BookQuestion | undefined = card?.questions[questionIndex];
   // The riddle is the whole point of step 1: nothing about the book is shown
