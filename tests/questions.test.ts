@@ -152,6 +152,42 @@ describe("validateQuestions", () => {
     expect(validateQuestions({ title_riddle: null, detail_questions: [] }, CONTEXT)).toEqual([]);
   });
 
+  it("drops a detail whose answer the riddle already gave away", () => {
+    const questions = validateQuestions(
+      {
+        title_riddle: {
+          question:
+            "A dead war photographer is given a handful of nights to solve his own murder, " +
+            "in a Colombo of ghosts. Which novel?",
+          answer: "x",
+        },
+        detail_questions: [
+          { question: "In which capital city is it set?", answer: "Colombo" },
+          { question: "Which conflict is the backdrop?", answer: "Sri Lankan Civil War" },
+        ],
+      },
+      CONTEXT,
+    );
+
+    // The riddle names Colombo, so asking for it a moment later tests nothing.
+    expect(questions.map((question) => question.answer)).toEqual([
+      CONTEXT.title,
+      "Sri Lankan Civil War",
+    ]);
+  });
+
+  it("does not treat a partial word in the riddle as giving the answer away", () => {
+    const questions = validateQuestions(
+      {
+        title_riddle: { question: "A ghost story set in Londonderry. Which novel?", answer: "x" },
+        detail_questions: [{ question: "Which city?", answer: "London" }],
+      },
+      CONTEXT,
+    );
+
+    expect(questions).toHaveLength(2);
+  });
+
   it("caps detail questions at two", () => {
     const questions = validateQuestions(
       {

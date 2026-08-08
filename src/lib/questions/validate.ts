@@ -76,7 +76,7 @@ export function validateQuestions(
 
   const details = Array.isArray(payload.detail_questions) ? payload.detail_questions : [];
   for (const raw of details.slice(0, 2)) {
-    const detail = validateDetail(raw as RawQuestion, context);
+    const detail = validateDetail(raw as RawQuestion, context, riddle?.questionText ?? null);
     if (detail) questions.push(detail);
   }
 
@@ -144,20 +144,46 @@ const TITLE_STOPWORDS = new Set([
 ]);
 
 /**
- * Detail questions are taken on trust now, with two exceptions that are
- * self-evident from the strings alone: an answer that is just the book's title
- * or its author is not a detail question, it is the riddle again.
+ * Detail questions are taken on trust now, apart from three things that are
+ * self-evident from the strings alone.
+ *
+ * The third is the one that bites most often: a card plays riddle first, then
+ * the details, so an answer the riddle already stated has been handed to the
+ * player a moment earlier. It tests nothing.
  */
-function validateDetail(raw: RawQuestion, context: ValidationContext): ValidatedQuestion | null {
+function validateDetail(
+  raw: RawQuestion,
+  context: ValidationContext,
+  riddleText: string | null,
+): ValidatedQuestion | null {
   const question = asText(raw?.question);
   const answer = asText(raw?.answer);
   if (!question || !answer) return null;
 
   const normalisedAnswer = normaliseForMatch(answer);
+
+  // An answer that is just the title or the author is the riddle again.
   if (normalisedAnswer === normaliseForMatch(context.title)) return null;
   if (context.author && normalisedAnswer === normaliseForMatch(context.author)) return null;
 
+  if (riddleText && answerGivenAwayBy(normalisedAnswer, riddleText)) {
+    console.warn(
+      `[questions] discarding detail for "${context.title}": ` +
+        `the riddle already names "${answer}"`,
+    );
+    return null;
+  }
+
   return { type: "detail", questionText: question, answer };
+}
+
+/** Did the riddle already hand this answer to the player? */
+export function answerGivenAwayBy(normalisedAnswer: string, riddleText: string): boolean {
+  if (!normalisedAnswer) return false;
+  const haystack = normaliseForMatch(riddleText);
+  // Whole-phrase match, so "London" in the riddle catches a "London" answer but
+  // "Londonderry" does not trip on it.
+  return new RegExp(`\\b${escapeRegExp(normalisedAnswer)}\\b`).test(haystack);
 }
 
 function asText(value: unknown): string | null {

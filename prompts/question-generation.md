@@ -1,5 +1,5 @@
 ---
-version: 2026-08-07.5
+version: 2026-08-07.6
 ---
 
 # Question generation prompt
@@ -105,6 +105,19 @@ Ask about something the book is genuinely associated with — the war it is set
 during, the city it made famous, the practice it helped end. The two questions
 must be about different things.
 
+**Never ask about anything the riddle already stated.** The card plays the
+riddle first and the details straight afterwards, so a fact named in the riddle
+was handed to the player seconds ago and tests nothing. If your riddle mentions
+a city, the details cannot ask for that city; if it names a war, the details
+cannot ask for that war. Write the riddle first, then pick detail answers it
+does *not* touch. A detail answer that appears in the riddle is discarded
+automatically.
+
+This cuts both ways, and it is often easier to fix from the riddle end: if the
+best detail answer for a book is the practice it abolished, keep the riddle
+vaguer about that practice — "a cruel piece of Victorian harness" rather than
+naming it — and save the name for the detail question.
+
 ## Hard constraints
 
 - Output **JSON only**. No prose, no markdown fences, no commentary.
@@ -140,12 +153,12 @@ Author: Anna Sewell
 ```json
 {
   "title_riddle": {
-    "question": "Its sympathetic portrayal of the plight of working animals is said to have been instrumental in abolishing the checkrein, or bearing rein — a strap used to hold a carriage horse's head painfully high. Which 1877 work?",
+    "question": "Its sympathetic first-person narration — unusually, by a horse — is credited with helping abolish a cruel piece of Victorian harness that forced carriage horses to hold their heads high. Which 1877 work?",
     "answer": "Black Beauty"
   },
   "detail_questions": [
     {
-      "question": "Which cruel strap, used to force a carriage horse's head high, fell out of use in Britain partly because of this novel?",
+      "question": "Which strap, used to force a carriage horse's head painfully high, fell out of use in Britain partly because of this novel?",
       "answer": "bearing rein"
     },
     {
@@ -158,9 +171,14 @@ Author: Anna Sewell
 
 Why this works: the riddle uses a *legacy* fact rather than the plot, and it is
 the single most quizzed thing about this book. "Which 1877 work?" narrows
-honestly. Note what is **absent** — Ginger and Jerry Barker are this novel's
-most memorable names and both are wrong answers here, because they exist only
-inside it.
+honestly.
+
+Note the deliberate restraint: the riddle says "a cruel piece of Victorian
+harness" and does **not** name the bearing rein, precisely so the first detail
+question can ask for it. Naming it in the riddle would have burned the answer.
+
+Note also what is **absent** — Ginger and Jerry Barker are this novel's most
+memorable names and both are wrong answers, because they exist only inside it.
 
 ### Example 2 — the clue explains what the title counts
 
