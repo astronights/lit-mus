@@ -174,7 +174,11 @@ function validateDetail(
   const normalisedAnswer = normaliseForMatch(answer);
 
   // An answer that is just the title or the author is the riddle again.
-  if (normalisedAnswer === normaliseForMatch(context.title)) return null;
+  if (titleRestatements(context.title).has(normalisedAnswer)) return null;
+  // Deliberately exact, unlike the title. Matching on surname alone would
+  // discard "Percy Bysshe Shelley" as an answer for a book by Mary Shelley,
+  // and a detail answer that happens to share a surname with the author is a
+  // real question far more often than it is a mistake.
   if (context.author && normalisedAnswer === normaliseForMatch(context.author)) return null;
 
   if (riddleText && answerGivenAwayBy(normalisedAnswer, riddleText)) {
@@ -186,6 +190,37 @@ function validateDetail(
   }
 
   return { type: "detail", questionText: question, answer };
+}
+
+/**
+ * The forms in which a detail answer is really just the title again.
+ *
+ * Exact equality was too narrow. A model that has been told not to answer with
+ * the title does not usually answer with the title — it answers with the title
+ * missing its article, or with the subtitle trimmed off, and the card then
+ * plays as riddle-then-riddle.
+ *
+ * Kept to a closed set of variants rather than anything fuzzy. Generation is
+ * one-shot, so a discarded question is gone for good, and a substring rule
+ * would throw away perfectly good answers that happen to appear in a title.
+ */
+export function titleRestatements(title: string): Set<string> {
+  const variants = new Set<string>();
+
+  const add = (value: string) => {
+    const normalised = normaliseForMatch(value);
+    if (normalised) variants.add(normalised);
+  };
+
+  // "Saville: A Novel" comes back as "Saville" often enough to be worth it.
+  const withoutSubtitle = title.split(":")[0];
+
+  for (const base of [title, withoutSubtitle]) {
+    add(base);
+    add(base.replace(/^\s*(the|a|an)\s+/i, ""));
+  }
+
+  return variants;
 }
 
 /** Did the riddle already hand this answer to the player? */

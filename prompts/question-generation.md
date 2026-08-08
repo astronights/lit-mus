@@ -1,5 +1,5 @@
 ---
-version: 2026-08-08.3
+version: 2026-08-08.4
 ---
 
 # Question generation prompt
@@ -225,6 +225,12 @@ naming it — and save the name for the detail question.
 - **An answer is a name or a short phrase**, at most a few words. It is shown on
   its own as *the answer*, so explanations belong in the question. "bearing
   rein", not "the bearing rein, a strap used on carriage horses".
+- **No detail answer may be the book's own title, or the author.** The riddle
+  already asked that; a card that asks it twice is a card with one question on
+  it. This includes the near-misses — the title without its leading article,
+  the title with a subtitle trimmed off — which are discarded automatically.
+  If the only detail answer you can find is the title, return an empty
+  `detail_questions` array instead.
 - Do not state a fact you are unsure of. A wrong answer is worse than a missing
   one: these questions are written once and are never revised. This applies to
   what you *recall* — a fact stated in the supplied article can be used freely.

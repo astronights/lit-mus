@@ -4,6 +4,7 @@ import {
   QuestionParseError,
   parseGenerationResponse,
   riddleLeak,
+  titleRestatements,
   validateQuestions,
 } from "@/lib/questions/validate";
 
@@ -219,5 +220,69 @@ describe("validateQuestions", () => {
     );
 
     expect(questions).toHaveLength(2);
+  });
+});
+
+/**
+ * A detail answer that restates the title turns the card into riddle-then-
+ * riddle. Exact equality caught only the laziest form of it.
+ */
+describe("titleRestatements", () => {
+  it("catches the title with its article dropped", () => {
+    const variants = titleRestatements("The Road to Lichfield");
+    expect(variants.has("the road to lichfield")).toBe(true);
+    expect(variants.has("road to lichfield")).toBe(true);
+  });
+
+  it("catches the title with a subtitle trimmed off", () => {
+    expect(titleRestatements("Saville: A Novel").has("saville")).toBe(true);
+  });
+
+  it("does not collect anything else from the title", () => {
+    // Deliberately not substring matching: "Lichfield" on its own is a fine
+    // detail answer, and generation is one-shot so a wrong discard is final.
+    expect(titleRestatements("The Road to Lichfield").has("lichfield")).toBe(false);
+  });
+});
+
+describe("validateDetail via validateQuestions", () => {
+  const context = { title: "The Road to Lichfield", author: "Penelope Lively", characterNames: [] };
+
+  function detailAnswers(answer: string): string[] {
+    return validateQuestions(
+      {
+        title_riddle: null,
+        detail_questions: [{ question: "Which work is this?", answer }],
+      },
+      context,
+    )
+      .filter((question) => question.type === "detail")
+      .map((question) => question.answer);
+  }
+
+  it("drops an answer that is the title without its article", () => {
+    expect(detailAnswers("Road to Lichfield")).toEqual([]);
+  });
+
+  it("drops an answer that is the exact title", () => {
+    expect(detailAnswers("The Road to Lichfield")).toEqual([]);
+  });
+
+  it("keeps a real place that merely appears in the title", () => {
+    expect(detailAnswers("Lichfield")).toEqual(["Lichfield"]);
+  });
+
+  it("keeps an answer sharing a surname with the author", () => {
+    // The reason the author check stays exact: this is a legitimate question
+    // for Frankenstein, whose author is Mary Shelley.
+    expect(
+      validateQuestions(
+        {
+          title_riddle: null,
+          detail_questions: [{ question: "Which poet was at Villa Diodati?", answer: "Percy Bysshe Shelley" }],
+        },
+        { title: "Frankenstein", author: "Mary Shelley", characterNames: [] },
+      ).map((question) => question.answer),
+    ).toEqual(["Percy Bysshe Shelley"]);
   });
 });
