@@ -476,9 +476,13 @@ badly generated question rather than a genuine gap.
 ### Book Detail (pushed screen)
 
 Cover/title/author/year → tappable category chips → plot blurb with its Wikipedia attribution →
-key characters → the 3 questions with **answers collapsed by default**, so the screen doubles
-as self-test. On first open, sections 1–4 render as soon as hydration lands and the questions
-fill in a moment later behind a "Generating questions…" line.
+key characters. On first open this triggers hydration server-side, so the request takes a few
+seconds; every later open is a database read.
+
+> **Changed: the questions are not here.** They were, with answers collapsed as a self-test.
+> But reading them spoils the riddle — the one question type the whole Drill screen is built
+> around — so they now live only in Drill, and the API does not ship them to this screen at
+> all. Question generation moved with them.
 
 ---
 
@@ -672,7 +676,7 @@ preference is a two-second re-pick.
 - [x] Frontend: four tabs — Browse, Search, Drill, Progress
 - [x] Anonymous browse/search/book-detail; sign-in required for Drill + Progress
 - [x] Leitner box scheduling + session composition
-- [x] Book Detail screen with answers collapsed by default
+- [x] Book Detail screen (questions deliberately excluded — see Section 5b)
 - [x] Wikipedia CC BY-SA attribution on book cards + licence note on Progress
 - [x] Mobile-first responsive layout + Web App Manifest
 - [x] Light / dark / system theme (system default, no-flash script)
