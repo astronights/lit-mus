@@ -1,6 +1,6 @@
 {
-  "name": "lit-mus",
-  "short_name": "lit-mus",
+  "name": "Litmus",
+  "short_name": "Litmus",
   "description": "Quiz-ready reference for books, from Black Beauty to Maali Almeida.",
   "start_url": "/drill",
   "scope": "/",

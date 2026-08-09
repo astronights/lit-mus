@@ -14,7 +14,9 @@
  * the network exactly as it would without a worker.
  */
 
-const CACHE = "lit-mus-shell-v1";
+// Bump on any change to a precached file. Without it the old offline page --
+// still carrying the old app name -- survives in every installed copy.
+const CACHE = "lit-mus-shell-v2";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icon-192.png"];
 

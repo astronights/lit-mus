@@ -63,7 +63,7 @@ const patrickHand = Patrick_Hand({
 });
 
 export const metadata: Metadata = {
-  title: "lit-mus",
+  title: "Litmus",
   description: "Quiz-ready reference for books, from Black Beauty to Maali Almeida.",
   manifest: "/manifest.webmanifest",
   // The apple entry must be a PNG: iOS ignores an SVG apple-touch-icon
@@ -76,7 +76,10 @@ export const metadata: Metadata = {
     ],
     apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
   },
-  appleWebApp: { capable: true, title: "lit-mus", statusBarStyle: "default" },
+  // `title` here is the iOS home-screen label. It has to agree with the
+  // manifest's short_name -- iOS reads this one, Android reads that one, and
+  // setting only one of them renames the app on half the devices.
+  appleWebApp: { capable: true, title: "Litmus", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
