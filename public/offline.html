@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>lit-mus — offline</title>
+    <style>
+      /* Deliberately self-contained: the stylesheet is exactly what is not
+         reachable when this page is shown. */
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-content: center;
+        gap: 0.75rem;
+        padding: 2rem;
+        text-align: center;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #f8f6f2;
+        color: #2f2a26;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #1b1917; color: #f4efe8; }
+      }
+      img { width: 72px; height: 72px; margin: 0 auto; }
+      h1 { font-size: 1.4rem; margin: 0; }
+      p { margin: 0; opacity: 0.75; max-width: 26rem; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <img src="/icon-192.png" alt="" />
+    <h1>No connection</h1>
+    <p>
+      lit-mus reads every book from the server, so there is nothing useful to show offline.
+      Reconnect and it will pick up where you left off.
+    </p>
+  </body>
+</html>

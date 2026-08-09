@@ -314,6 +314,26 @@ list will never actually get opened. Instead: **seed cheap, fetch on demand, cac
   documentation of the data model.
 - **Mobile**: responsive design plus a Web App Manifest, installable to the home screen.
 
+> **What "installable" actually required.** The manifest and SVG icons alone were not enough,
+> and both gaps fail silently rather than erroring.
+>
+> **PNG icons.** iOS ignores an SVG `apple-touch-icon` outright and substitutes a screenshot of
+> the page, so a home-screen icon becomes a blurry picture of whatever was on screen. Rendered
+> from the same SVGs with `sharp`: 192, 512, a 512 maskable, and a 180 for Safari.
+>
+> **A service worker.** Chrome and Edge do not offer "Install app" without a registered worker
+> that has a `fetch` handler. `public/sw.js` is that, and deliberately little else — it
+> precaches the offline page and nothing else. Every screen here is a database read (box
+> positions, what is due, which books exist), so a cached page is a *wrong* page, silently: a
+> stale drill card that reschedules a book you already answered is a worse failure than a
+> spinner. Navigations go to the network and fall back to `/offline.html`; API calls, fonts and
+> covers are left to the browser entirely.
+>
+> The worker takes over immediately (`skipWaiting` + `clients.claim`) because this app deploys
+> often and a worker waiting for every tab to close would keep a stale offline page for days. It
+> does not register in development, where a worker outliving `next dev` looks like the dev
+> server being broken.
+
 **One practical constraint**: Vercel's serverless functions have execution time limits (10s on
 Hobby). Hydration declares `maxDuration = 30` and each external fetch has a 6s timeout, so a
 slow source degrades to "missing" rather than to a timed-out request.

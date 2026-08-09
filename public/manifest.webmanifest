@@ -2,24 +2,42 @@
   "name": "lit-mus",
   "short_name": "lit-mus",
   "description": "Quiz-ready reference for books, from Black Beauty to Maali Almeida.",
-  "start_url": "/",
+  "start_url": "/drill",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f8f6f2",
   "theme_color": "#f8f6f2",
+  "categories": ["books", "education"],
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
-    },
-    {
-      "src": "/icon-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    { "name": "Drill", "url": "/drill" },
+    { "name": "Search", "url": "/search" },
+    { "name": "Progress", "url": "/progress" }
   ]
 }

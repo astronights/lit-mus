@@ -130,6 +130,18 @@ the point of the cache-miss design: you pay for the books you actually look at.
 
 Scope it to one book with `--book <id>`.
 
+## Installing it on a phone
+
+It is a PWA, so there is no store and nothing to download. Open the deployment in the phone's
+browser and:
+
+- **iOS/Safari** — Share → *Add to Home Screen*.
+- **Android/Chrome** — the *Install app* prompt, or ⋮ → *Add to Home screen*.
+
+It then opens standalone, without browser chrome, and launches straight into Drill. Nothing
+works offline by design — every screen is a database read, and a cached one would be a stale
+one — so an offline launch shows a short "no connection" page rather than a broken shell.
+
 ## How a book gets its content
 
 Seeding writes **title, author, Wikidata id and categories — nothing else**. Everything

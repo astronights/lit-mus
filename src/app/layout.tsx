@@ -4,6 +4,7 @@ import { Bangers, Chewy, Inter, Literata, Patrick_Hand, Shantell_Sans } from "ne
 import "./globals.css";
 
 import { Providers } from "@/components/providers";
+import { ServiceWorker } from "@/components/service-worker";
 import { TabBar } from "@/components/tab-bar";
 import { FONT_INIT_SCRIPT } from "@/lib/preferences";
 
@@ -65,7 +66,16 @@ export const metadata: Metadata = {
   title: "lit-mus",
   description: "Quiz-ready reference for books, from Black Beauty to Maali Almeida.",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  // The apple entry must be a PNG: iOS ignores an SVG apple-touch-icon
+  // outright and falls back to a screenshot of the page, which is how a
+  // home-screen icon ends up being a blurry picture of the sign-in form.
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+  },
   appleWebApp: { capable: true, title: "lit-mus", statusBarStyle: "default" },
 };
 
@@ -105,6 +115,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main className="flex-1 pt-4">{children}</main>
           </div>
           <TabBar />
+          <ServiceWorker />
         </Providers>
       </body>
     </html>
